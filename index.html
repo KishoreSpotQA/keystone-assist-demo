@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Keystone Assist Demo</title>
+<style>
+:root{--bg:#eef8ec;--surface:#fff;--line:#cfe5c9;--fg:#171a33;--muted:#5d6079;--accent:#3346d3}
+body{margin:0;background:linear-gradient(115deg,#fff 0%,#fff 40%,var(--bg) 100%);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+main{max-width:760px;margin:0 auto;padding:56px 20px}
+h1{font-size:34px;letter-spacing:-.02em;margin:0 0 8px}
+p{color:var(--muted);margin:0 0 28px;line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+a.card{display:block;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;text-decoration:none;color:inherit}
+a.card:hover{border-color:var(--accent)}
+a.card strong{display:block;font-size:18px;margin-bottom:6px;color:var(--accent)}
+small{display:block;margin-top:28px;color:var(--muted)}
+code{background:#e3f2df;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<main>
+<h1>Keystone Assist Demo</h1>
+<p>Two demo apps for testing a read-only AI chat assistant with Virtuoso. Keystone CRM, its companies, people and figures are fictional sample data.</p>
+<div class="grid">
+<a class="card" href="website/"><strong>Keystone Assist Website</strong>Landing page with the assistant pinned to the bottom centre. Use as <code>appUrl</code>.</a>
+<a class="card" href="crm/"><strong>Keystone CRM Assist</strong>CRM workspace with module lists and a docked assistant. Use as <code>crmUrl</code>.</a>
+</div>
+<small>Demo controls: add <code>#admin</code> to either app link. Faults: <code>#offtopic</code>, <code>#mutation</code>, <code>#noretrieval</code>, <code>#window</code>, <code>#empty</code>, <code>#slow</code>, <code>#relabel</code>, <code>#shadow</code> (combine with dots, for example <code>#admin.offtopic.slow</code>).</small>
+</main>
+</body>
+</html>

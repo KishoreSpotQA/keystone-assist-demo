@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body style="margin:0">
+<title>Keystone CRM Assist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: CRM workspace — dark navy module rail | record workspace | docked Assist chat panel (overlay on narrow screens) */
+:root{
+  --bg:#f2f4f8; --surface:#ffffff; --surface-2:#eceff5; --line:#d8dde7; --fg:#162035; --muted:#5a647a;
+  --accent:#2b4fd0; --accent-ink:#ffffff; --accent-soft:#e3e9ff;
+  --nav:#101a33; --nav-fg:#c3cce2; --nav-active:#22305a;
+  --ok:#1d8257; --ok-soft:#ddf3e8; --warn:#9a5c00; --warn-soft:#fbefd9; --bad:#bf3434; --bad-soft:#fbe3e3;
+  --bot:#f5f7fb; --user:#2b4fd0; --user-ink:#ffffff;
+  --font-display:"Bricolage Grotesque","Figtree",system-ui,sans-serif;
+  --font-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c111e; --surface:#141b2c; --surface-2:#1a2236; --line:#29324a; --fg:#e5eaf4; --muted:#929fb8;
+  --accent:#8099ff; --accent-ink:#0c111e; --accent-soft:#1f2a50;
+  --nav:#080d19; --nav-fg:#aab5cf; --nav-active:#1c2747;
+  --ok:#5fcf98; --ok-soft:#163327; --warn:#f0b25a; --warn-soft:#3a2b12; --bad:#ff8a8a; --bad-soft:#3d1c1c;
+  --bot:#1a2236; --user:#3a56c9; --user-ink:#ffffff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c111e; --surface:#141b2c; --surface-2:#1a2236; --line:#29324a; --fg:#e5eaf4; --muted:#929fb8;
+  --accent:#8099ff; --accent-ink:#0c111e; --accent-soft:#1f2a50;
+  --nav:#080d19; --nav-fg:#aab5cf; --nav-active:#1c2747;
+  --ok:#5fcf98; --ok-soft:#163327; --warn:#f0b25a; --warn-soft:#3a2b12; --bad:#ff8a8a; --bad-soft:#3d1c1c;
+  --bot:#1a2236; --user:#3a56c9; --user-ink:#ffffff; color-scheme:dark}
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.5;overflow:hidden}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:208px minmax(0,1fr) 400px;grid-template-rows:56px minmax(0,1fr);height:100%}
+.app.dock-closed{grid-template-columns:208px minmax(0,1fr) 0}
+
+/* Top bar */
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding-inline:16px;background:var(--surface);border-bottom:1px solid var(--line);min-width:0}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.01em;white-space:nowrap}
+.brand-mark{width:28px;height:28px;border-radius:6px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:15px}
+.tenant{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.top-spacer{flex:1}
+.today-chip{font-family:var(--font-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.fault-badge{font-size:12px;font-weight:600;color:var(--bad);background:var(--bad-soft);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.assist-toggle{display:flex;align-items:center;gap:8px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:6px 14px;font-weight:600;cursor:pointer}
+.assist-toggle[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.spark{width:14px;height:14px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-weight:700;font-size:12px}
+
+/* Module rail */
+.sidenav{background:var(--nav);color:var(--nav-fg);padding-block:14px;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.nav-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6;padding:6px 18px}
+.nav-btn{display:flex;justify-content:space-between;align-items:center;border:0;background:transparent;color:inherit;text-align:left;padding:8px 18px;cursor:pointer;border-left:3px solid transparent}
+.nav-btn:hover{background:var(--nav-active)}
+.nav-btn[aria-current="page"]{background:var(--nav-active);color:#fff;border-left-color:var(--accent)}
+.nav-count{font-family:var(--font-mono);font-size:11px;opacity:.7}
+
+/* Workspace */
+.main{overflow:auto;padding:22px 24px 40px;min-width:0}
+.page-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+.crumb{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.crumb button{border:0;background:none;padding:0;color:var(--accent);cursor:pointer}
+h1{font-family:var(--font-display);font-size:26px;line-height:1.15;margin:2px 0 0;letter-spacing:-.015em;text-wrap:balance}
+h2{font-family:var(--font-display);font-size:16px;margin:0 0 10px;letter-spacing:-.005em}
+.sub{color:var(--muted);margin:4px 0 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.kpi-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kpi-value{font-family:var(--font-mono);font-size:22px;font-weight:500;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi-note{font-size:12px;color:var(--muted)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.feed li{display:flex;gap:12px;justify-content:space-between;align-items:baseline;padding:9px 0;border-top:1px solid var(--line)}
+.feed li:first-child{border-top:0}
+.feed .meta{color:var(--muted);font-size:12px;white-space:nowrap;font-family:var(--font-mono)}
+.table-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:600;padding:10px 14px;background:var(--surface-2);border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+td.num,td.mono{font-family:var(--font-mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.num{text-align:right} th.num{text-align:right}
+.rowlink{display:inline;border:0;background:none;padding:0;color:var(--accent);font-weight:600;cursor:pointer;text-align:left}
+.rowlink:hover{text-decoration:underline}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:1px 9px;white-space:nowrap;background:var(--surface-2);color:var(--muted)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.info{background:var(--accent-soft);color:var(--accent)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px 24px;margin:0}
+.fields div{min-width:0}
+.fields dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fields dd{margin:2px 0 0;overflow-wrap:anywhere}
+.stack{display:flex;flex-direction:column;gap:16px}
+.footnote{font-size:12px;color:var(--muted);margin-top:22px}
+
+/* Assist dock */
+.assist-dock{border-left:1px solid var(--line);background:var(--surface);min-width:0;overflow:hidden;display:flex}
+.app.dock-closed .assist-dock{border-left:0}
+keystone-assist{display:flex;flex:1;min-width:0;min-height:0}
+
+/* Demo controls */
+.admin{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(10,20,50,.18);width:min(340px,calc(100vw - 32px));max-height:calc(100% - 100px);overflow:auto}
+.admin:not([open]){width:auto}
+.admin summary{gap:12px;cursor:pointer;padding:10px 14px;font-weight:700;font-family:var(--font-display);list-style:none;display:flex;justify-content:space-between}
+.admin summary::-webkit-details-marker{display:none}
+.admin-body{padding:4px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.fault{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:start}
+.fault input{margin-top:3px}
+.fault span{font-weight:600}
+.fault small{grid-column:2;color:var(--muted);font-size:12px;line-height:1.35}
+.admin-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--accent)}
+.admin code{font-family:var(--font-mono);font-size:11px;background:var(--surface-2);padding:1px 4px;border-radius:4px}
+
+@media (max-width:1100px){.app{grid-template-columns:184px minmax(0,1fr) 360px}.app.dock-closed{grid-template-columns:184px minmax(0,1fr) 0}}
+@media (max-width:900px){
+  .app,.app.dock-closed{grid-template-columns:minmax(0,1fr);grid-template-rows:56px auto minmax(0,1fr)}
+  .sidenav{flex-direction:row;overflow-x:auto;padding:6px 8px;gap:4px}
+  .nav-label{display:none}
+  .nav-btn{border-left:0;border-bottom:3px solid transparent;padding:6px 12px;white-space:nowrap;gap:8px}
+  .nav-btn[aria-current="page"]{border-bottom-color:var(--accent)}
+  .main{padding:16px}
+  .assist-dock{position:fixed;inset:0;z-index:20;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);border-left:0}
+  .app.dock-closed .assist-dock{display:none}
+  .tenant,.today-chip{display:none}
+}
+@media (max-width:520px){.assist-label{display:none}.brand-name{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">K</span><span class="brand-name">Keystone CRM</span></div>
+    <span class="tenant">QA sandbox</span>
+    <span class="top-spacer"></span>
+    <span class="fault-badge" id="fault-badge" hidden></span>
+    <span class="today-chip" id="today-chip"></span>
+    <button class="assist-toggle" id="assist-toggle" aria-pressed="true" aria-controls="assist-dock" type="button">
+      <svg class="spark" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0l1.8 5.2L15 7l-5.2 1.8L8 14l-1.8-5.2L1 7l5.2-1.8z"/></svg>
+      <span class="assist-label">Assist</span>
+    </button>
+    <span class="avatar" title="Sam Carter" aria-label="Signed in as Sam Carter">SC</span>
+  </header>
+  <nav class="sidenav" id="sidenav" aria-label="Modules"></nav>
+  <main class="main" id="main"></main>
+  <aside class="assist-dock" id="assist-dock" aria-label="Assist"></aside>
+</div>
+
+<details class="admin" id="admin-panel" hidden>
+  <summary>Demo controls <span aria-hidden="true">▾</span></summary>
+  <div class="admin-body" id="admin-body"></div>
+</details>
+
+<script>
+(function(){
+"use strict";
+/* ---------- Dates (all seed data is relative to today) ---------- */
+const DAY=864e5;
+const NOW=new Date();
+const TODAY=new Date(NOW.getFullYear(),NOW.getMonth(),NOW.getDate());
+function d(off,h,m){const x=new Date(TODAY);x.setDate(x.getDate()+off);x.setHours(h==null?10:h,m||0,0,0);return x;}
+const QM=Math.floor(TODAY.getMonth()/3)*3;
+const Q_START=new Date(TODAY.getFullYear(),QM,1);
+const Q_END=new Date(TODAY.getFullYear(),QM+3,0,23,59);
+const DAYS_INTO_Q=Math.round((TODAY-Q_START)/DAY);
+const Q_LABEL="Q"+(QM/3+1)+" "+TODAY.getFullYear();
+const ME="Sam Carter";
+const fmtD=x=>x.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+const fmtDY=x=>x.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+const fmtT=x=>x.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+const fmtDT=x=>fmtD(x)+", "+fmtT(x);
+const dayDiff=x=>Math.round((new Date(x.getFullYear(),x.getMonth(),x.getDate())-TODAY)/DAY);
+function rel(x){const n=dayDiff(x);if(n===0)return"today";if(n===1)return"tomorrow";if(n===-1)return"yesterday";return n>0?"in "+n+" days":(-n)+" days ago";}
+const money=n=>"$"+n.toLocaleString("en-US");
+const monthName=TODAY.toLocaleDateString("en-GB",{month:"long"});
+
+/* ---------- Seed data (mirrors the regression test plan, with relative dates) ---------- */
+function buildSeed(){
+  const closeWon=-Math.min(4,DAYS_INTO_Q);
+  return {
+    accounts:[
+      {id:"acc-atoz",name:"AtoZ Co Ltd",industry:"Technology",type:"Customer",city:"London, UK",website:"https://www.atoz-co-ltd.example.com",phone:"+44 20 7946 0321",employees:850,owner:ME,modified:d(-1,16,20)},
+      {id:"acc-regent",name:"Regent Solutions Corp",industry:"Financial Services",type:"Prospect",city:"Manchester, UK",website:"",phone:"+44 161 496 0754",employees:1200,owner:ME,modified:d(-3,11,5)}
+    ],
+    opportunities:[
+      {id:"opp-cloud",name:"Cloud Migration Initiative",account:"acc-atoz",stage:"Proposal/Price Quote",status:"Open",amount:185000,prob:60,close:d(21),modified:d(-1,15,40),next:"Revised proposal due with Helena Ostrowski"},
+      {id:"opp-sec",name:"Security Audit Package",account:"acc-atoz",stage:"Needs Analysis",status:"Open",amount:64000,prob:30,close:d(75),modified:d(-4,17,0),next:"Confirm audit scope after the scoping session"},
+      {id:"opp-saas",name:"SaaS Renewal FY26",account:"acc-atoz",stage:"Closed Won",status:"Closed Won",amount:120000,prob:100,close:d(closeWon),modified:d(closeWon,12,0),next:"Handover to Customer Success"},
+      {id:"opp-data",name:"Data Analytics Platform",account:"acc-regent",stage:"Value Proposition",status:"Open",amount:240000,prob:45,close:d(12),modified:d(-2,10,10),next:"Chase purchase order with Priya Venkataraman"},
+      {id:"opp-comp",name:"Compliance Module",account:"acc-regent",stage:"Qualification",status:"Open",amount:48000,prob:20,close:d(110),modified:d(-6,9,30),next:"Book discovery call"},
+      {id:"opp-q2",name:"Q2 Support Contract",account:"acc-regent",stage:"Closed Lost",status:"Closed Lost",amount:30000,prob:0,close:d(-(DAYS_INTO_Q+20)),modified:d(-(DAYS_INTO_Q+20),14,0),next:"Lost on price"}
+    ],
+    contacts:[
+      {id:"con-helena",name:"Helena Ostrowski",title:"CTO",account:"acc-atoz",email:"helena.ostrowski@atoz-co-ltd.example.com",phone:"+44 20 7946 0390",modified:d(-1,14,5)},
+      {id:"con-marcus",name:"Marcus Delacroix",title:"VP Operations",account:"acc-atoz",email:"marcus.delacroix@atoz-co-ltd.example.com",phone:"+44 20 7946 0377",modified:d(-5,10,45)},
+      {id:"con-priya",name:"Priya Venkataraman",title:"Finance Director",account:"acc-regent",email:"priya.v@regent-solutions.example.com",phone:"+44 161 496 0711",modified:d(-2,16,30)},
+      {id:"con-tobias",name:"Tobias Worthington",title:"Head of IT",account:"acc-regent",email:"t.worthington@regent-solutions.example.com",phone:"+44 161 496 0722",modified:d(-8,9,15)}
+    ],
+    leads:[
+      {id:"lead-daniel",name:"Daniel Okafor",company:"Brightline Logistics",status:"New",source:"Web Site",created:d(-2,9,40)},
+      {id:"lead-sofia",name:"Sofia Marchetti",company:"Verano Foods",status:"In Process",source:"Trade Show",created:d(-6,13,10)},
+      {id:"lead-kenji",name:"Kenji Watanabe",company:"Halden Robotics",status:"New",source:"Referral",created:d(-9,11,0)}
+    ],
+    meetings:[
+      {id:"mtg-qbr",name:"Q3 Business Review",account:"acc-atoz",status:"Planned",start:d(0,15,30),mins:60,location:"AtoZ HQ, London / Teams",organizer:ME,invitees:["Helena Ostrowski","Marcus Delacroix"],opp:"opp-cloud"},
+      {id:"mtg-kick",name:"Cloud Migration Kick-off",account:"acc-atoz",status:"Planned",start:d(3,10,0),mins:90,location:"Teams",organizer:ME,invitees:["Helena Ostrowski"],opp:"opp-cloud"},
+      {id:"mtg-demo",name:"Platform Demo",account:"acc-regent",status:"Planned",start:d(6,14,0),mins:60,location:"Regent offices, Manchester",organizer:"Alex Rivera",invitees:[ME,"Tobias Worthington","Priya Venkataraman"],opp:"opp-data"},
+      {id:"mtg-scope",name:"Security Audit Scoping",account:"acc-atoz",status:"Held",start:d(-4,11,0),mins:60,location:"Teams",organizer:ME,invitees:["Marcus Delacroix"],opp:"opp-sec"},
+      {id:"mtg-work",name:"Compliance Workshop",account:"acc-regent",status:"Held",start:d(-16,13,0),mins:120,location:"Regent offices, Manchester",organizer:"Alex Rivera",invitees:[ME,"Priya Venkataraman"],opp:"opp-comp"}
+    ],
+    calls:[
+      {id:"call-renew",name:"Renewal Negotiation Call",account:"acc-atoz",status:"Held",date:d(-10,9,30),contact:"Helena Ostrowski",outcome:"Agreed FY26 renewal terms"},
+      {id:"call-disc",name:"Security Audit Discovery Call",account:"acc-atoz",status:"Held",date:d(-6,16,0),contact:"Marcus Delacroix",outcome:"Scoping session booked"},
+      {id:"call-req",name:"Compliance Requirements Call",account:"acc-regent",status:"Held",date:d(-11,11,0),contact:"Priya Venkataraman",outcome:"Formal requirements document requested"}
+    ],
+    tasks:[
+      {id:"task-proposal",name:"Send revised Cloud Migration proposal to Helena",account:"acc-atoz",due:d(-3),priority:"High",status:"In Progress"},
+      {id:"task-notes",name:"Share Security Audit scoping notes with Marcus",account:"acc-atoz",due:d(-7),priority:"Medium",status:"Not Started"},
+      {id:"task-po",name:"Chase Regent PO for Data Analytics Platform",account:"acc-regent",due:d(-12),priority:"High",status:"Not Started"},
+      {id:"task-summary",name:"Send Q3 Business Review follow-up summary",account:"acc-atoz",due:d(2),priority:"Medium",status:"Not Started"},
+      {id:"task-book",name:"Book Compliance Module discovery call",account:"acc-regent",due:d(9),priority:"Low",status:"Not Started"},
+      {id:"task-handover",name:"Log SaaS Renewal FY26 handover notes",account:"acc-atoz",due:d(-2),priority:"Medium",status:"Completed",completed:d(-2,17,10)}
+    ]
+  };
+}
+let S=buildSeed();
+
+/* ---------- Fault injection (from the link anchor, e.g. #admin.offtopic.slow) ---------- */
+const FAULTS=[
+  ["offtopic","Off-topic leak","Answers the weather question instead of declining (breaks REG-02)."],
+  ["mutation","Mutation leak","Claims to delete or create records, and actually changes the data (breaks REG-20, REG-21)."],
+  ["noretrieval","Retrieval outage","Every data question returns a polite not-found message. Keyword checks still pass many of these."],
+  ["window","Wrong time window","Pipeline filters ignore the quarter and 30-day windows (breaks REG-11, REG-12)."],
+  ["empty","Empty answer","Assist returns a blank response (breaks AC-10)."],
+  ["slow","Slow answers","Adds a 9 to 14 second delay before each answer."],
+  ["relabel","UI relabel","Renames the chat input and Send button IDs and labels, to demo self-healing."],
+  ["shadow","Shadow DOM","Renders the Assist panel inside an open shadow root."]
+];
+const F={};let ADMIN=false,FORCE_CHAT=false;
+function readHash(){
+  const toks=location.hash.replace(/^#/,"").toLowerCase().split(".").filter(Boolean);
+  ADMIN=toks.includes("admin");FORCE_CHAT=toks.includes("chat");
+  FAULTS.forEach(([k])=>F[k]=toks.includes(k));
+}
+
+/* ---------- Helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const rand=(a,b)=>a+Math.random()*(b-a);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const A=id=>S.accounts.find(a=>a.id===id)||{name:"(none)"};
+const O=id=>S.opportunities.find(o=>o.id===id);
+const L=(type,id,label)=>"[["+type+":"+id+"|"+label+"]]";
+const plural=(n,w,p)=>n+" "+(n===1?w:(p||w+"s"));
+const isGuest=m=>m.organizer!==ME&&m.invitees.includes(ME);
+const openOpps=()=>S.opportunities.filter(o=>o.status==="Open").sort((a,b)=>a.close-b.close);
+const upcoming=()=>S.meetings.filter(m=>m.status==="Planned"&&dayDiff(m.start)>=0).sort((a,b)=>a.start-b.start);
+const overdue=()=>S.tasks.filter(t=>t.status!=="Completed"&&dayDiff(t.due)<0).sort((a,b)=>a.due-b.due);
+const todays=()=>upcoming().filter(m=>dayDiff(m.start)===0);
+function closingWithin(n){return F.window?openOpps():openOpps().filter(o=>{const x=dayDiff(o.close);return x>=0&&x<=n;});}
+function none(what){return pick(["No "+what+" found in your CRM.","I searched your CRM but couldn't find any "+what+".","I didn't find any "+what+" for you."]);}
+
+/* ---------- Assist response engine ---------- */
+let ctx={choice:null};
+function findAccount(t){if(/\ba ?to ?z\b|atoz/.test(t))return S.accounts.find(a=>a.id==="acc-atoz");if(/regent/.test(t))return S.accounts.find(a=>a.id==="acc-regent");return null;}
+function findContact(t){return S.contacts.find(c=>t.includes(c.name.toLowerCase())||t.includes(c.name.split(" ")[1].toLowerCase()));}
+
+const isHowTo=t=>/^(how (do|can|should|would) (i|we)\b|how to\b|what('s| is) the (best )?way to\b|steps to\b|walk me through\b|guide me\b|show me how\b|can you show me how\b)/.test(t);
+const isMutation=t=>/^(please\s+)?((can|could|would) you\s+)?(go ahead and\s+)?(delete|remove|erase|wipe|create|add|insert|update|edit|change|modify|rename|reassign|assign|mark|log|schedule|book|merge|convert|close)\b/.test(t)||/\b(delete|erase|wipe)\b/.test(t);
+
+function respond(q){
+  const t=q.toLowerCase().replace(/[’]/g,"'").trim();
+  const acct=findAccount(t);
+  if(ctx.choice&&t.split(/\s+/).length<=6){
+    const list=ctx.choice;const words={one:1,first:1,two:2,second:2,three:3,third:3,four:4,fourth:4,five:5,fifth:5};
+    let m=t.match(/^(?:number |no\.? |#)?(\d)\b/)||t.match(/\b(first|second|third|fourth|fifth|one|two|three|four|five)\b/);
+    let pickM=null;
+    if(m){const n=+m[1]||words[m[1]];pickM=list[n-1];}
+    if(!pickM)pickM=list.find(mt=>t.includes(mt.name.toLowerCase()));
+    if(pickM){ctx.choice=null;return prepBrief(pickM);}
+  }
+  if(isHowTo(t))return howTo(t);
+  if(isMutation(t))return mutation(t,q);
+  if(/\b(accomplish|achiev)/.test(t)||(/summar/.test(t)&&/week/.test(t)))return accomplishments();
+  if(/follow[- ]?up/.test(t))return followUps();
+  if(/\bfocus\b|priorit/.test(t))return weeklyFocus();
+  if(/(help|assist)\b.*\b(my )?(work|day)\b|plan my day/.test(t))return workToday();
+  if(/meeting/.test(t)&&/guest|invitee|participant|attendee/.test(t))return guestMeetings();
+  if(/\bprep(are)?\b|\bprep\b/.test(t)){
+    if(acct)return accountPrep(acct);
+    if(/today/.test(t))return meetingsToday(true);
+    if(/\bfive\b|\b5\b|choose|select|pick/.test(t))return nextFive();
+    return nextMeetingsPrep();
+  }
+  if(acct){
+    if(/website|\burl\b|web site|domain/.test(t))return website(acct);
+    if(/opportunit|deal/.test(t))return accountOpps(acct);
+    if(/update|latest|news|activit|happening|status/.test(t))return latest(acct);
+    return accountSummary(acct);
+  }
+  if(/opportunit|\bdeals?\b|pipeline/.test(t)){
+    if(/closed|\bwon\b|\blost\b/.test(t))return closedOpps(t);
+    if(/clos/.test(t))return closingSoon(t);
+    return listOpen();
+  }
+  if(/\bleads?\b/.test(t))return listLeads();
+  if(/meeting/.test(t)){
+    if(/today/.test(t))return meetingsToday(false);
+    if(/month/.test(t))return meetingsMonth();
+    if(/\bheld\b|\bpast\b|last week|previous/.test(t))return pastMeetings();
+    return listUpcoming();
+  }
+  const con=findContact(t);if(con)return contactSummary(con);
+  if(/contact/.test(t))return recentContacts();
+  if(/\btasks?\b|to-?do/.test(t))return /overdue|late|past due|missed/.test(t)?overdueTasks():myTasks();
+  if(/\bcalls?\b/.test(t))return recentCalls();
+  if(/what can you|what do you do|who are you|what are you|capabilit|what can i ask|help me with\??$|^help\??$/.test(t))return capabilities();
+  if(/^(hi|hello|hey|good (morning|afternoon|evening))\b/.test(t))return pick(["Hi Sam. Ask me about your opportunities, meetings, tasks or accounts, or ask how to do something in Keystone CRM.","Hello Sam. I can look up CRM records, prepare you for meetings or walk you through a how-to. What do you need?"]);
+  if(F.offtopic&&/weather|temperature|forecast|rain/.test(t))return weatherLeak();
+  return fallback();
+}
+
+function fallback(){
+  return pick([
+    "I couldn't find an answer to that. My agents cover your CRM: records (accounts, contacts, leads and opportunities), meetings and calls, tasks, pipeline insights and how-to guidance. Please try to rephrase your question around one of those areas.",
+    "Sorry, I couldn't find an answer to that question. I work through CRM agents for records, meetings, tasks, pipeline insights and how-to guidance in Keystone CRM. Could you rephrase it in terms of your CRM data?",
+    "I'm not able to answer that one, because it's outside my CRM scope. My agents can help with accounts, contacts, leads, opportunities, meetings, calls and tasks. Try to rephrase your question and I'll take another look."
+  ]);
+}
+function weatherLeak(){return pick(["It's around 14°C in London today with light rain this afternoon. Humidity is about 82%, and the forecast shows clearer skies tomorrow.","London is cloudy today, with a temperature of 13°C, 70% chance of precipitation and a forecast high of 16°C."]);}
+
+function capabilities(){
+  return pick(["I'm Assist, your Keystone CRM assistant. Here's what I can help you with:","Hi Sam, I'm Assist. I can help you with these areas of your CRM:"])+"\n\n"+
+  "- **CRM records:** look up your opportunities, leads, contacts, accounts, meetings, calls and tasks\n"+
+  "- **Pipeline insights:** opportunities closed this quarter or closing in the next 30 days\n"+
+  "- **Meeting preparation:** upcoming meetings and prep briefs for a named account\n"+
+  "- **Work assistance:** daily suggestions, follow-ups, weekly priorities and accomplishment summaries\n"+
+  "- **How-to guidance:** step-by-step help for creating records, logging calls and importing data\n\n"+
+  "I have read-only access to your CRM data, so I can't create, update or delete records.";
+}
+
+/* Data queries */
+function listOpen(){
+  if(F.noretrieval)return none("open opportunities");
+  const o=openOpps(),tot=o.reduce((s,x)=>s+x.amount,0);
+  return pick(["You have **"+plural(o.length,"open opportunity","open opportunities")+"** worth "+money(tot)+" in your pipeline:","I found "+plural(o.length,"open opportunity","open opportunities")+" in your pipeline, worth "+money(tot)+" in total:"])+"\n\n"+
+    o.map(x=>"- "+L("opportunities",x.id,x.name)+" ("+A(x.account).name+"): "+x.stage+", "+money(x.amount)+", closing "+fmtD(x.close))
+    .join("\n")+"\n\n"+pick(["Want me to show which of these close in the next 30 days?","The nearest close date is "+fmtD(o[0].close)+" for "+o[0].name+"."]);
+}
+function listLeads(){
+  if(F.noretrieval||!S.leads.length)return none("leads assigned to you");
+  return pick(["You have "+plural(S.leads.length,"lead")+" assigned to you:","Here are the "+plural(S.leads.length,"lead")+" I found assigned to you:"])+"\n\n"+
+    S.leads.map(l=>"- "+L("leads",l.id,l.name)+", "+l.company+" ("+l.status+", source: "+l.source+", created "+rel(l.created)+")").join("\n");
+}
+function mtgLine(m){return L("meetings",m.id,m.name)+" with "+A(m.account).name+", "+fmtD(m.start)+" at "+fmtT(m.start)+(isGuest(m)?" (you're a guest)":"");}
+function listUpcoming(){
+  if(F.noretrieval)return none("upcoming meetings");
+  const u=upcoming();if(!u.length)return "You have no meetings scheduled in the coming days.";
+  return pick(["You have "+plural(u.length,"upcoming meeting")+" on your schedule:","I found "+plural(u.length,"upcoming meeting")+":"])+"\n\n"+u.map(m=>"- "+mtgLine(m)).join("\n");
+}
+function meetingsMonth(){
+  if(F.noretrieval)return none("meetings this month");
+  const ms=S.meetings.filter(m=>m.start.getMonth()===TODAY.getMonth()&&m.start.getFullYear()===TODAY.getFullYear()).sort((a,b)=>a.start-b.start);
+  if(!ms.length)return "There are no meetings this month ("+monthName+").";
+  return "You have "+plural(ms.length,"meeting")+" this month ("+monthName+"):\n\n"+ms.map(m=>"- "+L("meetings",m.id,m.name)+" with "+A(m.account).name+", "+fmtD(m.start)+" at "+fmtT(m.start)+", status: "+m.status).join("\n");
+}
+function pastMeetings(){
+  if(F.noretrieval)return none("held meetings");
+  const ms=S.meetings.filter(m=>m.status==="Held").sort((a,b)=>b.start-a.start);
+  return "Your recently held meetings:\n\n"+ms.map(m=>"- "+L("meetings",m.id,m.name)+" with "+A(m.account).name+", "+rel(m.start)).join("\n");
+}
+function recentContacts(){
+  if(F.noretrieval)return none("recent contacts");
+  const c=[...S.contacts].sort((a,b)=>b.modified-a.modified);
+  return pick(["Here are your "+c.length+" most recently modified contacts:","I found "+c.length+" recent contacts, most recently updated first:"])+"\n\n"+
+    c.map(x=>"- "+L("contacts",x.id,x.name)+", "+x.title+" at "+A(x.account).name+" (modified "+rel(x.modified)+")").join("\n");
+}
+function overdueTasks(){
+  if(F.noretrieval)return none("overdue tasks");
+  const o=overdue();if(!o.length)return "Good news: you have no overdue tasks.";
+  return pick(["Yes, you have **"+plural(o.length,"overdue task")+"**:","You have "+plural(o.length,"overdue task")+", oldest first:"])+"\n\n"+
+    o.map(t=>"- "+L("tasks",t.id,t.name)+" ("+A(t.account).name+"), due "+fmtD(t.due)+", "+(-dayDiff(t.due))+" days overdue, "+t.priority+" priority").join("\n");
+}
+function myTasks(){
+  if(F.noretrieval)return none("tasks");
+  const open=S.tasks.filter(t=>t.status!=="Completed").sort((a,b)=>a.due-b.due);
+  return "You have "+plural(open.length,"open task")+":\n\n"+open.map(t=>"- "+L("tasks",t.id,t.name)+", due "+fmtD(t.due)+(dayDiff(t.due)<0?" (overdue)":"")).join("\n");
+}
+function recentCalls(){
+  if(F.noretrieval)return none("calls");
+  const c=[...S.calls].sort((a,b)=>b.date-a.date);
+  return "Your recent calls:\n\n"+c.map(x=>"- "+L("calls",x.id,x.name)+" with "+x.contact+" ("+A(x.account).name+"), "+rel(x.date)+": "+x.outcome).join("\n");
+}
+function contactSummary(c){
+  if(F.noretrieval)return none("contacts matching that name");
+  return "**"+L("contacts",c.id,c.name)+"** is "+c.title+" at "+A(c.account).name+".\n\n- Email: "+c.email+"\n- Phone: "+c.phone+"\n- Last modified "+rel(c.modified);
+}
+
+/* Pipeline */
+function closedOpps(t){
+  if(F.noretrieval)return none("closed opportunities this quarter");
+  let c=S.opportunities.filter(o=>o.status!=="Open");
+  if(!F.window)c=c.filter(o=>o.close>=Q_START&&o.close<=Q_END);
+  if(/\bwon\b/.test(t))c=c.filter(o=>o.status==="Closed Won");
+  if(/\blost\b/.test(t))c=c.filter(o=>o.status==="Closed Lost");
+  if(!c.length)return "You have no closed opportunities this quarter ("+Q_LABEL+").";
+  return pick(["This quarter ("+Q_LABEL+", from "+fmtDY(Q_START)+") you've closed "+plural(c.length,"opportunity","opportunities")+":","I found "+plural(c.length,"closed opportunity","closed opportunities")+" this quarter ("+Q_LABEL+"):"])+"\n\n"+
+    c.map(o=>"- "+L("opportunities",o.id,o.name)+" ("+A(o.account).name+"): "+o.status+", "+money(o.amount)+", closed "+fmtDY(o.close)).join("\n");
+}
+function closingSoon(t){
+  if(F.noretrieval)return none("opportunities closing soon");
+  const m=t.match(/(\d+)\s*days?/);const n=m?+m[1]:30;
+  const c=closingWithin(n);
+  if(!c.length)return "No opportunities are closing in the next "+n+" days.";
+  return pick([plural(c.length,"opportunity is","opportunities are")+" closing in the next "+n+" days:","I found "+plural(c.length,"opportunity","opportunities")+" closing within the next "+n+" days:"])+"\n\n"+
+    c.map(o=>"- "+L("opportunities",o.id,o.name)+" ("+A(o.account).name+"): closes "+fmtD(o.close)+" ("+rel(o.close)+"), "+o.stage+", "+money(o.amount)).join("\n");
+}
+
+/* Work assistance */
+function workToday(){
+  const od=overdue(),td=todays(),cs=closingWithin(30);
+  let s=pick(["Here's how I can help with your work today. Based on your CRM, I'd suggest this order:","Here's a suggested plan for today, based on your tasks, meetings and opportunities:"])+"\n\n";
+  s+="1. **Clear overdue tasks:** you have "+plural(od.length,"overdue task")+(od.length?", starting with "+L("tasks",od[0].id,od[0].name)+" ("+(-dayDiff(od[0].due))+" days overdue)":"")+".\n";
+  s+="2. **Prepare for today's meetings:** "+(td.length?td.map(m=>L("meetings",m.id,m.name)+" at "+fmtT(m.start)+" with "+A(m.account).name).join(", "):"no meetings today, so it's a good day for outreach")+".\n";
+  s+="3. **Move opportunities closing soon:** "+(cs.length?cs.map(o=>L("opportunities",o.id,o.name)+" ("+rel(o.close)+")").join(", "):"nothing closes in the next 30 days")+".\n\n";
+  return s+"I can also look up records, build a meeting prep brief or walk you through a how-to in Keystone CRM.";
+}
+function followUps(){
+  return pick(["Based on your recent activity, I recommend these follow-up actions:","Here are the follow-up actions I'd suggest from your recent calls, meetings and tasks:"])+"\n\n"+
+  "1. **"+L("meetings","mtg-scope","Security Audit Scoping")+"** (held "+rel(d(-4))+"): share the scoping notes with Marcus Delacroix. That task is already overdue.\n"+
+  "2. **"+L("calls","call-req","Compliance Requirements Call")+"** with Priya Venkataraman: send the formal requirements document to keep "+L("opportunities","opp-comp","Compliance Module")+" moving.\n"+
+  "3. **"+L("opportunities","opp-data","Data Analytics Platform")+"** closes "+rel(d(12))+" and the purchase order chase is overdue. Follow up with Priya this week.\n"+
+  "4. **"+L("calls","call-renew","Renewal Negotiation Call")+"** with Helena Ostrowski: confirm the Customer Success handover for SaaS Renewal FY26.\n\n"+
+  "Want me to prepare a follow-up summary for any of these?";
+}
+function weeklyFocus(){
+  const od=overdue(),cs=closingWithin(30),wk=upcoming().filter(m=>dayDiff(m.start)<=7);
+  return pick(["Here's what I'd focus on this week, in priority order:","I'd prioritise your week like this:"])+"\n\n"+
+  "1. **Overdue tasks ("+od.length+"):** "+(od.map(t=>L("tasks",t.id,t.name)).join("; ")||"none")+".\n"+
+  "2. **Open opportunities closing within 30 days:** "+(cs.map(o=>L("opportunities",o.id,o.name)+" ("+money(o.amount)+", "+rel(o.close)+")").join("; ")||"none")+".\n"+
+  "3. **Meetings this week ("+wk.length+"):** "+(wk.map(m=>L("meetings",m.id,m.name)+" "+rel(m.start)).join("; ")||"none")+".\n\n"+
+  "I recommend clearing the high-priority overdue task first, because it blocks the "+money(240000)+" Data Analytics Platform deal.";
+}
+function accomplishments(){
+  const wkAgo=d(-7,0,0);
+  const tasks=S.tasks.filter(t=>t.status==="Completed"&&t.completed>=wkAgo);
+  const mtgs=S.meetings.filter(m=>m.status==="Held"&&m.start>=wkAgo);
+  const opps=S.opportunities.filter(o=>o.status!=="Open"&&o.close>=wkAgo&&o.close<=NOW);
+  const sec=(title,items)=>"### "+title+" ("+items.length+")\n"+(items.length?items.join("\n"):"- None this week");
+  return pick(["Here's a summary of your accomplishments for the week:","Nice week, Sam. Here's what you completed in the last 7 days:"])+"\n\n"+
+    sec("Completed tasks",tasks.map(t=>"- "+L("tasks",t.id,t.name)+", completed "+rel(t.completed)))+"\n\n"+
+    sec("Meetings held",mtgs.map(m=>"- "+L("meetings",m.id,m.name)+" with "+A(m.account).name+", "+rel(m.start)))+"\n\n"+
+    sec("Opportunities closed",opps.map(o=>"- "+L("opportunities",o.id,o.name)+": "+o.status+", "+money(o.amount)))+"\n\n"+
+    "Summary: "+plural(tasks.length,"task")+" completed, "+plural(mtgs.length,"meeting")+" held and "+plural(opps.length,"opportunity","opportunities")+" closed.";
+}
+
+/* Meetings */
+function guestMeetings(){
+  if(F.noretrieval)return none("meetings where you were a guest");
+  const g=S.meetings.filter(isGuest),held=g.filter(m=>m.status==="Held"),up=g.filter(m=>m.status==="Planned");
+  return pick(["You've attended **"+plural(held.length,"meeting")+"** as a guest (invitee rather than organizer)","In total you've been a guest at "+plural(held.length,"held meeting")])+":\n\n"+
+    held.map(m=>"- "+L("meetings",m.id,m.name)+" with "+A(m.account).name+", organized by "+m.organizer+", "+rel(m.start)).join("\n")+
+    (up.length?"\n\nYou're also a guest participant in "+plural(up.length,"upcoming meeting")+": "+up.map(m=>L("meetings",m.id,m.name)+" ("+fmtD(m.start)+")").join(", ")+". Total as guest: "+g.length+".":"");
+}
+function meetingsToday(prep){
+  if(F.noretrieval)return none("meetings today");
+  const td=todays();
+  if(!td.length)return "You have no meetings scheduled today. Your next meeting is "+(upcoming()[0]?mtgLine(upcoming()[0]):"not scheduled yet")+".";
+  let s="You have "+plural(td.length,"meeting")+" scheduled today:\n\n"+td.map(m=>"- "+L("meetings",m.id,m.name)+" at "+fmtT(m.start)+" with "+A(m.account).name+" ("+m.invitees.filter(x=>x!==ME).join(", ")+")").join("\n");
+  if(prep)s+="\n\n"+td.map(m=>"**To prepare for "+m.name+":** review "+(m.opp?L("opportunities",m.opp,O(m.opp).name)+" ("+O(m.opp).stage+")":"the account")+" and the open tasks for "+A(m.account).name+".").join("\n");
+  return s;
+}
+function nextMeetingsPrep(){
+  if(F.noretrieval)return none("upcoming meetings");
+  const u=upcoming();if(!u.length)return "You have no upcoming meetings to prepare for.";
+  ctx.choice=u.slice(0,5);
+  return pick(["Here are your next "+plural(u.length,"meeting")+" so you can prepare:","Your next upcoming meetings:"])+"\n\n"+
+    u.map(m=>"- "+mtgLine(m)+". Attendees: "+m.invitees.filter(x=>x!==ME).join(", ")+(m.opp?". Related: "+O(m.opp).name:"")).join("\n")+
+    "\n\nTell me which one you'd like a prep brief for.";
+}
+function nextFive(){
+  if(F.noretrieval)return none("upcoming meetings");
+  const u=upcoming().slice(0,5);if(!u.length)return "You have no upcoming meetings to prepare for.";
+  ctx.choice=u;
+  return (u.length<5?"You have "+plural(u.length,"upcoming meeting")+" scheduled, fewer than five, so here's the full list:":"Here are your next five meetings:")+"\n\n"+
+    u.map(m=>"1. "+mtgLine(m)).join("\n")+"\n\nWhich one would you like to prepare for? Reply with the number or the meeting name and I'll put together a prep brief.";
+}
+function accountPrep(a){
+  if(F.noretrieval)return none("meetings with "+a.name);
+  const m=upcoming().find(x=>x.account===a.id);
+  if(!m)return "You have no upcoming meetings with "+a.name+". Here's the account summary instead:\n\n"+accountSummary(a);
+  return prepBrief(m);
+}
+function prepBrief(m){
+  const a=A(m.account);
+  const opps=S.opportunities.filter(o=>o.account===a.id);
+  const contacts=S.contacts.filter(c=>c.account===a.id);
+  const acts=[...S.calls.filter(c=>c.account===a.id).map(c=>({d:c.date,t:L("calls",c.id,c.name)+" with "+c.contact+": "+c.outcome})),
+              ...S.meetings.filter(x=>x.account===a.id&&x.status==="Held").map(x=>({d:x.start,t:L("meetings",x.id,x.name)+" meeting held"}))].sort((x,y)=>y.d-x.d).slice(0,3);
+  const tasks=S.tasks.filter(t=>t.account===a.id&&t.status!=="Completed");
+  let s="### Prep brief: "+m.name+"\n";
+  s+="**When:** "+fmtD(m.start)+" at "+fmtT(m.start)+" ("+rel(m.start)+"), "+m.mins+" minutes, "+m.location+"\n";
+  s+="**Attendees:** "+m.invitees.filter(x=>x!==ME).map(n=>{const c=S.contacts.find(c=>c.name===n);return c?L("contacts",c.id,n)+" ("+c.title+")":n;}).join(", ")+(isGuest(m)?". Organized by "+m.organizer+"; you're a guest.":"")+"\n\n";
+  s+="**Account:** "+L("accounts",a.id,a.name)+", "+a.industry+", "+a.city+" ("+a.type+")\n\n";
+  s+="**Opportunities:**\n"+opps.map(o=>"- "+L("opportunities",o.id,o.name)+": "+o.stage+", "+money(o.amount)+(o.status==="Open"?", closes "+fmtD(o.close):"")).join("\n")+"\n\n";
+  s+="**Key contacts:** "+contacts.map(c=>L("contacts",c.id,c.name)+" ("+c.title+")").join(", ")+"\n\n";
+  s+="**Recent activity:**\n"+acts.map(x=>"- "+x.t+", "+rel(x.d)).join("\n")+"\n\n";
+  if(tasks.length)s+="**Open tasks:**\n"+tasks.map(t=>"- "+L("tasks",t.id,t.name)+", due "+fmtD(t.due)+(dayDiff(t.due)<0?" (overdue)":"")).join("\n")+"\n\n";
+  const lead=opps.find(o=>o.id===m.opp)||opps.find(o=>o.status==="Open");
+  s+="**Suggested talking points:**\n1. Progress on "+(lead?lead.name+" (next step: "+lead.next.charAt(0).toLowerCase()+lead.next.slice(1)+")":"open opportunities")+"\n2. Confirm decision makers and timeline\n3. Agree next steps and owners before the end of the meeting";
+  return s;
+}
+
+/* Record lookup */
+function website(a){
+  if(F.noretrieval)return "I couldn't find the "+a.name+" account record.";
+  return a.website?pick(["The website for **"+a.name+"** is "+a.website+".",a.name+"'s website is "+a.website+"."]):"The "+a.name+" account doesn't have a website set. You can add one from the account's Edit view.";
+}
+function accountOpps(a){
+  if(F.noretrieval)return none("opportunities for "+a.name);
+  const o=S.opportunities.filter(x=>x.account===a.id).sort((x,y)=>y.modified-x.modified);
+  return pick(["Here are the recent opportunities for **"+a.name+"**, most recently updated first:","I found "+plural(o.length,"opportunity","opportunities")+" for "+a.name+":"])+"\n\n"+
+    o.map(x=>"- "+L("opportunities",x.id,x.name)+": "+x.status+(x.status==="Open"?", "+x.stage:"")+", "+money(x.amount)+", updated "+rel(x.modified)).join("\n");
+}
+function latest(a){
+  if(F.noretrieval)return none("recent updates for "+a.name);
+  const ev=[
+    ...S.opportunities.filter(o=>o.account===a.id).map(o=>({d:o.modified,t:"Opportunity "+L("opportunities",o.id,o.name)+" updated: "+o.stage+(o.status==="Open"?". Next step: "+o.next:"")})),
+    ...S.calls.filter(c=>c.account===a.id).map(c=>({d:c.date,t:"Call "+L("calls",c.id,c.name)+" with "+c.contact+": "+c.outcome})),
+    ...S.meetings.filter(m=>m.account===a.id&&m.status==="Held").map(m=>({d:m.start,t:"Meeting "+L("meetings",m.id,m.name)+" held"})),
+    ...S.contacts.filter(c=>c.account===a.id).map(c=>({d:c.modified,t:"Contact "+L("contacts",c.id,c.name)+" ("+c.title+") updated"}))
+  ].filter(e=>e.d<=NOW).sort((x,y)=>y.d-x.d).slice(0,6);
+  const next=upcoming().filter(m=>m.account===a.id);
+  return pick(["Here are the latest updates on **"+a.name+"**:","Latest activity for "+a.name+", newest first:"])+"\n\n"+
+    ev.map(e=>"- "+rel(e.d).replace(/^./,c=>c.toUpperCase())+": "+e.t).join("\n")+
+    (next.length?"\n\n**Coming up:** "+next.map(m=>L("meetings",m.id,m.name)+" "+rel(m.start)+" at "+fmtT(m.start)).join(", "):"");
+}
+function accountSummary(a){
+  if(F.noretrieval)return none("account details for "+a.name);
+  const o=S.opportunities.filter(x=>x.account===a.id&&x.status==="Open");
+  return "**"+L("accounts",a.id,a.name)+"** is a "+a.type.toLowerCase()+" account in "+a.industry+", based in "+a.city+".\n\n- Open opportunities: "+o.length+" worth "+money(o.reduce((s,x)=>s+x.amount,0))+"\n- Contacts: "+S.contacts.filter(c=>c.account===a.id).map(c=>c.name).join(", ")+"\n- Website: "+(a.website||"not set");
+}
+
+/* How-to guidance */
+const HOWTO={
+  opportunity:"Here are the steps to create a new opportunity in Keystone CRM:\n\n1. **Step 1:** Navigate to the **Opportunities** module from the left menu.\n2. **Step 2:** Click **Create** in the top-right corner.\n3. **Step 3:** Fill in the required fields: Opportunity Name, Account Name, Expected Close Date, Sales Stage and Amount.\n4. **Step 4:** Optionally set Probability, Lead Source and Next Step.\n5. **Step 5:** Click **Save**. The new opportunity opens in its record view.\n\nTip: create it from the Account record and the Account Name field is filled in for you.",
+  lead:"Follow these steps to create a new lead:\n\n1. **Step 1:** Navigate to the **Leads** module.\n2. **Step 2:** Click **Create**.\n3. **Step 3:** Enter the lead's details. **Last Name** is required; add First Name, Account Name, Title, Email and Phone if you have them.\n4. **Step 4:** Set Lead Source and Status (for example New).\n5. **Step 5:** Click **Save**.\n\nWhen the lead is qualified, use **Convert Lead** to turn it into a contact, account and opportunity.",
+  call:"Here's how to log a call:\n\n1. **Step 1:** Open the related record (for example an account, contact or opportunity) and go to the **Calls** subpanel, or navigate to the **Calls** module.\n2. **Step 2:** Click **Log Call**.\n3. **Step 3:** Enter a **Subject**, set the Direction, Status (Held), start date and duration.\n4. **Step 4:** Add a description of the conversation and outcome.\n5. **Step 5:** Click **Save**. The call appears in the record's activity stream.",
+  import:"To import records from a CSV file, use the Import wizard:\n\n1. **Step 1:** Navigate to the module you want to import into (for example Contacts) and click **Import** from the module menu.\n2. **Step 2:** Upload your **CSV file** and confirm the delimiter and whether the first row has headers.\n3. **Step 3:** Choose **Create new records only** or **Create and update** existing records.\n4. **Step 4:** **Map** each CSV column to a Keystone CRM field. Required fields must be mapped.\n5. **Step 5:** Set duplicate checks, then click **Import Now**.\n6. **Step 6:** Review the results summary and download any rows with errors to fix and import again.",
+  contact:"Here are the steps to create a new contact:\n\n1. **Step 1:** Navigate to the **Contacts** module.\n2. **Step 2:** Click **Create**.\n3. **Step 3:** Enter **Last Name** (required), First Name, Title, Account Name, Email and Phone.\n4. **Step 4:** Click **Save**.",
+  account:"Here are the steps to create a new account:\n\n1. **Step 1:** Navigate to the **Accounts** module.\n2. **Step 2:** Click **Create**.\n3. **Step 3:** Enter the **Name** (required), Industry, Type, Website and billing address.\n4. **Step 4:** Click **Save**.",
+  meeting:"Here's how to schedule a meeting:\n\n1. **Step 1:** Navigate to the **Meetings** module, or open the related record.\n2. **Step 2:** Click **Schedule Meeting**.\n3. **Step 3:** Enter the Subject, start date, duration and location, and add invitees.\n4. **Step 4:** Click **Save**. Invitees receive an invitation if notifications are on.",
+  task:"Here's how to create a task:\n\n1. **Step 1:** Navigate to the **Tasks** module.\n2. **Step 2:** Click **Create**.\n3. **Step 3:** Enter the Subject, Due Date, Priority and the related record.\n4. **Step 4:** Click **Save**."
+};
+function howTo(t){
+  if(/import|csv|upload/.test(t))return HOWTO.import;
+  if(/\bcalls?\b/.test(t))return HOWTO.call;
+  if(/opportunit|deal/.test(t))return HOWTO.opportunity;
+  if(/\bleads?\b/.test(t))return HOWTO.lead;
+  if(/contact/.test(t))return HOWTO.contact;
+  if(/account/.test(t))return HOWTO.account;
+  if(/meeting/.test(t))return HOWTO.meeting;
+  if(/task/.test(t))return HOWTO.task;
+  return "I don't have a guide for that yet. I can walk you through creating opportunities, leads, contacts, accounts, tasks and meetings, logging calls, or importing records from a CSV file. Try to rephrase your question around one of those.";
+}
+
+/* No-mutation guard */
+function mutation(t,q){
+  const del=/delete|remove|erase|wipe/.test(t),create=/create|add|insert/.test(t);
+  const mod=/\bleads?\b/.test(t)?"leads":/contact/.test(t)?"contacts":/opportunit|deal/.test(t)?"opportunities":/account/.test(t)?"accounts":/meeting/.test(t)?"meetings":/task/.test(t)?"tasks":/\bcalls?\b/.test(t)?"calls":"records";
+  if(F.mutation){
+    if(del&&S[mod]){const n=S[mod].length;S[mod]=[];return "Done. All "+n+" "+mod+" have been deleted.";}
+    if(create&&mod==="contacts"){const nm=(q.match(/named\s+(.+?)[.!?]*$/i)||[,"New Contact"])[1];const parts=nm.split(" ");
+      S.contacts.unshift({id:"con-new-"+Date.now(),name:nm,title:"",account:"",email:"",phone:"",modified:new Date()});return nm+" has been created as a new contact.";}
+  }
+  if(del)return pick(["Sorry, I can't delete records. I have read-only access to your CRM, so I'm only able to view and summarise data. Your "+(S[mod]?S[mod].length+" ":"")+mod+" are unchanged.","I'm not able to delete "+mod+". Assist is read-only: I can look up and summarise CRM data but I do not have the ability to change it. If you need to clean up "+mod+", an admin can do it from the "+mod.charAt(0).toUpperCase()+mod.slice(1)+" list view."]);
+  if(create){const key=mod==="records"?null:mod.replace(/ies$/,"y").replace(/s$/,"");
+    return pick(["I can't create records because I have read-only access to your CRM. I can show you how to do it yourself, though:","I'm not able to create that for you, as Assist is read-only. Here's a quick guide instead:"])+"\n\n"+(key&&HOWTO[key]?HOWTO[key].split("\n\n").slice(1).join("\n\n"):"Open the module, click **Create**, fill in the required fields and click **Save**.");}
+  return "Sorry, I can't make changes to CRM records. I have read-only access, so I can only view and summarise your data. I can show you how to make the change yourself if you tell me which record.";
+}
+
+/* ---------- Assist chat UI ---------- */
+const CHAT_CSS=`
+.as-panel{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;background:var(--surface);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.5}
+.as-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.as-id{flex:1;min-width:0;display:flex;flex-direction:column}
+.as-title{font-family:var(--font-display);font-weight:700;font-size:16px;display:flex;align-items:center;gap:6px}
+.as-title svg{width:14px;height:14px;color:var(--accent)}
+.as-sub{font-size:12px;color:var(--muted)}
+.as-btn{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px;font-weight:600;color:var(--fg)}
+.as-btn:hover{border-color:var(--accent)}
+.as-log{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.as-empty{display:flex;flex-direction:column;gap:10px;color:var(--muted)}
+.as-empty p{margin:0}
+.as-chips{display:flex;flex-wrap:wrap;gap:6px}
+.as-chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;cursor:pointer;font:inherit;font-size:13px;color:var(--fg);text-align:left}
+.as-chip:hover{border-color:var(--accent);color:var(--accent)}
+.as-msg{max-width:92%;border-radius:12px;padding:9px 13px;overflow-wrap:anywhere}
+.as-user{align-self:flex-end;background:var(--user);color:var(--user-ink);border-bottom-right-radius:4px}
+.as-bot{align-self:flex-start;background:var(--bot);border:1px solid var(--line);border-bottom-left-radius:4px}
+.as-who{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.as-body p{margin:0 0 6px}.as-body p:last-child{margin-bottom:0}
+.as-body ul,.as-body ol{margin:4px 0 8px;padding-left:20px}
+.as-body li{margin:2px 0}
+.as-body h4{font-family:var(--font-display);font-size:15px;margin:2px 0 6px}
+.as-rec{display:inline;text-align:left;border:0;background:none;padding:0;font:inherit;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+.as-thinking{align-self:flex-start;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px}
+.as-dots{display:inline-flex;gap:3px}.as-dots i{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.3;animation:asb 1s infinite}
+.as-dots i:nth-child(2){animation-delay:.15s}.as-dots i:nth-child(3){animation-delay:.3s}
+@keyframes asb{50%{opacity:1}}
+.as-form{display:flex;gap:8px;padding:12px 14px 6px;border-top:1px solid var(--line)}
+.as-input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:9px 12px;font:inherit}
+.as-input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.as-send{border:0;background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:0 16px;font:inherit;font-weight:700;cursor:pointer}
+.as-send:disabled{opacity:.5;cursor:default}
+.as-status{font-size:11px;color:var(--muted);padding:0 14px 10px;display:flex;justify-content:space-between;gap:8px}
+@media (prefers-reduced-motion:reduce){.as-dots i{animation:none;opacity:.8}}
+`;
+const SUGGEST=["What can you help me with?","Show me my open opportunities","Help me prepare for my meeting with AtoZ Co Ltd","Do I have any overdue tasks?"];
+let chatRoot=null,messages=[],busy=false,dockOpen=true;
+if(!customElements.get("keystone-assist"))customElements.define("keystone-assist",class extends HTMLElement{});
+
+function mdInline(s){
+  s=esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
+  return s.replace(/\[\[(\w+):([\w-]+)\|([^\]]+)\]\]/g,(m,t,id,l)=>'<button type="button" class="as-rec" data-module="'+t+'" data-id="'+id+'">'+l+"</button>");
+}
+function md(src){
+  let h="",list=null;const close=()=>{if(list){h+="</"+list+">";list=null;}};
+  for(const raw of src.split("\n")){const l=raw.trimEnd();let m;
+    if((m=l.match(/^- (.*)/))){if(list!=="ul"){close();h+="<ul>";list="ul";}h+="<li>"+mdInline(m[1])+"</li>";}
+    else if((m=l.match(/^\d+\. (.*)/))){if(list!=="ol"){close();h+="<ol>";list="ol";}h+="<li>"+mdInline(m[1])+"</li>";}
+    else if((m=l.match(/^### (.*)/))){close();h+="<h4>"+mdInline(m[1])+"</h4>";}
+    else if(!l.trim())close();
+    else{close();h+="<p>"+mdInline(l)+"</p>";}}
+  close();return h;
+}
+const q$=s=>chatRoot.querySelector(s);
+function mountChat(){
+  const dock=$("#assist-dock");dock.innerHTML="";
+  const host=document.createElement("keystone-assist");host.id="assist-host";dock.appendChild(host);
+  chatRoot=F.shadow?host.attachShadow({mode:"open"}):host;
+  const ids=F.relabel?{input:"msg-field-7f3",send:"submit-q-7f3"}:{input:"assist-input",send:"assist-send"};
+  chatRoot.innerHTML="<style>"+CHAT_CSS+"</style>"+
+  '<section class="as-panel" aria-label="Assist chat">'+
+   '<div class="as-head"><div class="as-id"><span class="as-title"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0l1.8 5.2L15 7l-5.2 1.8L8 14l-1.8-5.2L1 7l5.2-1.8z"/></svg>Assist</span><span class="as-sub">Read-only CRM assistant</span></div>'+
+   '<button type="button" class="as-btn" id="assist-new">New chat</button><button type="button" class="as-btn" id="assist-close" aria-label="Close Assist">Close</button></div>'+
+   '<div class="as-log" id="assist-log" role="log" aria-live="polite"></div>'+
+   '<form class="as-form" id="assist-form" autocomplete="off"><input class="as-input" id="'+ids.input+'" name="'+(F.relabel?"message":"assist-question")+'" type="text" aria-label="'+(F.relabel?"Message":"Ask Assist")+'" placeholder="'+(F.relabel?"Type a message":"Ask Assist about your CRM…")+'">'+
+   '<button class="as-send" id="'+ids.send+'" type="submit">'+(F.relabel?"Submit":"Send")+"</button></form>"+
+   '<div class="as-status"><span id="assist-status" data-busy="false">Ready</span><span>Answers use your CRM data</span></div></section>';
+  q$("#assist-form").addEventListener("submit",e=>{e.preventDefault();const i=q$(".as-input");const v=i.value;i.value="";ask(v);});
+  q$("#assist-new").addEventListener("click",()=>{if(busy)return;messages=[];ctx={choice:null};renderLog();});
+  q$("#assist-close").addEventListener("click",()=>setDock(false));
+  q$("#assist-log").addEventListener("click",e=>{
+    const chip=e.target.closest(".as-chip");if(chip){ask(chip.textContent);return;}
+    const r=e.target.closest(".as-rec");if(r){go({view:"detail",module:r.dataset.module,id:r.dataset.id});if(window.innerWidth<=900)setDock(false);}
+  });
+  renderLog();
+}
+function renderLog(){
+  const log=q$("#assist-log");log.innerHTML="";
+  if(!messages.length){log.innerHTML='<div class="as-empty"><p>Hi Sam. Ask about your opportunities, meetings, tasks and accounts, or how to do something in Keystone CRM.</p><div class="as-chips">'+SUGGEST.map(s=>'<button type="button" class="as-chip">'+esc(s)+"</button>").join("")+"</div></div>";return;}
+  messages.forEach((m,i)=>{const el=msgEl(m.role);el.querySelector(".as-body").innerHTML=m.role==="user"?"<p>"+esc(m.text)+"</p>":md(m.text);
+    if(m.role==="bot"){el.dataset.state="done";if(i===messages.length-1&&!busy)el.id="assist-last-answer";}log.appendChild(el);});
+  log.scrollTop=log.scrollHeight;
+}
+function msgEl(role){const el=document.createElement("div");el.className="as-msg as-"+role;el.dataset.testid=role==="user"?"user-message":"assist-answer";
+  el.setAttribute("data-testid",el.dataset.testid);el.innerHTML=(role==="bot"?'<div class="as-who">Assist</div>':"")+'<div class="as-body"></div>';return el;}
+function setStatus(txt,b){const s=q$("#assist-status");s.textContent=txt;s.dataset.busy=b?"true":"false";const btn=q$(".as-send");if(btn)btn.disabled=!!b;}
+async function ask(q){
+  q=(q||"").trim();if(busy||!q)return;busy=true;
+  const prev=q$("#assist-last-answer");if(prev)prev.removeAttribute("id");
+  const log=q$("#assist-log");if(!messages.length)log.innerHTML="";
+  messages.push({role:"user",text:q});const u=msgEl("user");u.querySelector(".as-body").innerHTML="<p>"+esc(q)+"</p>";log.appendChild(u);
+  const th=document.createElement("div");th.className="as-thinking";th.id="assist-thinking";th.innerHTML='<span class="as-dots" aria-hidden="true"><i></i><i></i><i></i></span>Assist is thinking…';log.appendChild(th);log.scrollTop=log.scrollHeight;
+  setStatus("Thinking…",true);
+  await sleep(F.slow?rand(9000,14000):rand(600,1200));
+  let ans;try{ans=respond(q);}catch(err){console.error(err);ans="Something went wrong while I was looking that up. Please ask again.";}
+  if(F.empty)ans="";
+  th.remove();
+  const el=msgEl("bot");el.dataset.state="streaming";el.id="assist-streaming";log.appendChild(el);
+  setStatus("Answering…",true);
+  const body=el.querySelector(".as-body");
+  const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const parts=ans.split(/(\[\[[^\]]+\]\]|\s+)/).filter(Boolean);
+  if(reduce||!parts.length){body.innerHTML=md(ans);}
+  else{let acc="";for(let i=0;i<parts.length;i++){acc+=parts[i];if(i%6===5||i===parts.length-1){body.innerHTML=md(acc);log.scrollTop=log.scrollHeight;await sleep(16);}}}
+  messages.push({role:"bot",text:ans});
+  el.dataset.state="done";el.id="assist-last-answer";
+  busy=false;setStatus("Ready",false);
+  renderNav();if(route.view!=="home"||true)renderMain();
+}
+function setDock(open){dockOpen=open;$("#app").classList.toggle("dock-closed",!open);$("#assist-toggle").setAttribute("aria-pressed",String(open));if(open){const i=chatRoot&&q$(".as-input");if(i&&window.innerWidth>900)i.focus({preventScroll:true});}}
+
+/* ---------- CRM workspace ---------- */
+const MODULES=[["home","Home"],["accounts","Accounts"],["contacts","Contacts"],["leads","Leads"],["opportunities","Opportunities"],["meetings","Meetings"],["calls","Calls"],["tasks","Tasks"]];
+const SINGULAR={accounts:"Account",contacts:"Contact",leads:"Lead",opportunities:"Opportunity",meetings:"Meeting",calls:"Call",tasks:"Task"};
+let route={view:"home"};
+function go(r){route=r;renderNav();renderMain();$("#main").scrollTop=0;}
+function renderNav(){
+  const cur=route.view==="home"?"home":route.module;
+  $("#sidenav").innerHTML='<div class="nav-label">Modules</div>'+MODULES.map(([k,l])=>'<button type="button" class="nav-btn" data-nav="'+k+'" id="nav-'+k+'"'+(k===cur?' aria-current="page"':"")+"><span>"+l+"</span>"+(k!=="home"?'<span class="nav-count">'+S[k].length+"</span>":"")+"</button>").join("");
+}
+const statusPill=s=>{const c={"Open":"info","Closed Won":"ok","Closed Lost":"bad","Planned":"info","Held":"ok","Completed":"ok","In Progress":"warn","Not Started":"","New":"info","In Process":"warn"}[s]||"";return '<span class="pill '+c+'">'+esc(s)+"</span>";};
+const rl=(mod,r)=>'<button type="button" class="rowlink" data-module="'+mod+'" data-id="'+r.id+'">'+esc(r.name)+"</button>";
+const acctLink=id=>{const a=S.accounts.find(x=>x.id===id);return a?rl("accounts",a):"—";};
+const COLS={
+  accounts:[["Name",r=>rl("accounts",r)],["Industry",r=>esc(r.industry)],["Type",r=>esc(r.type)],["City",r=>esc(r.city)],["Website",r=>esc(r.website||"—")],["Modified",r=>fmtDT(r.modified),"mono"]],
+  contacts:[["Name",r=>rl("contacts",r)],["Title",r=>esc(r.title||"—")],["Account",r=>acctLink(r.account),"",1],["Email",r=>esc(r.email||"—")],["Modified",r=>fmtDT(r.modified),"mono"]],
+  leads:[["Name",r=>rl("leads",r)],["Company",r=>esc(r.company)],["Status",r=>statusPill(r.status)],["Lead source",r=>esc(r.source)],["Created",r=>fmtDT(r.created),"mono"]],
+  opportunities:[["Name",r=>rl("opportunities",r)],["Account",r=>acctLink(r.account),"",1],["Sales stage",r=>esc(r.stage)],["Status",r=>statusPill(r.status)],["Amount",r=>money(r.amount),"num"],["Close date",r=>fmtD(r.close),"mono"]],
+  meetings:[["Subject",r=>rl("meetings",r)],["Account",r=>acctLink(r.account),"",1],["Status",r=>statusPill(r.status)],["Start",r=>fmtDT(r.start),"mono"],["My role",r=>isGuest(r)?'<span class="pill warn">Guest</span>':'<span class="pill">Organizer</span>'],["Organizer",r=>esc(r.organizer)]],
+  calls:[["Subject",r=>rl("calls",r)],["Account",r=>acctLink(r.account),"",1],["Contact",r=>esc(r.contact)],["Status",r=>statusPill(r.status)],["Date",r=>fmtDT(r.date),"mono"],["Outcome",r=>esc(r.outcome)]],
+  tasks:[["Subject",r=>rl("tasks",r)],["Account",r=>acctLink(r.account),"",1],["Priority",r=>esc(r.priority)],["Status",r=>statusPill(r.status)],["Due date",r=>fmtD(r.due)+(r.status!=="Completed"&&dayDiff(r.due)<0?' <span class="pill bad">Overdue</span>':""),"mono"]]
+};
+const SORT={accounts:(a,b)=>a.name.localeCompare(b.name),contacts:(a,b)=>b.modified-a.modified,leads:(a,b)=>b.created-a.created,opportunities:(a,b)=>a.close-b.close,meetings:(a,b)=>b.start-a.start,calls:(a,b)=>b.date-a.date,tasks:(a,b)=>a.due-b.due};
+function table(mod,rows,hideAccount){
+  const cols=COLS[mod].filter(c=>!(hideAccount&&c[3]));
+  if(!rows.length)return '<div class="panel"><p class="sub">No '+mod+" to show.</p></div>";
+  return '<div class="table-wrap"><table data-module="'+mod+'"><thead><tr>'+cols.map(c=>'<th scope="col"'+(c[2]==="num"?' class="num"':"")+">"+c[0]+"</th>").join("")+"</tr></thead><tbody>"+
+    rows.map(r=>'<tr data-id="'+r.id+'">'+cols.map(c=>"<td"+(c[2]?' class="'+c[2]+'"':"")+">"+c[1](r)+"</td>").join("")+"</tr>").join("")+"</tbody></table></div>";
+}
+function head(title,sub,crumb){return '<div class="page-head"><div>'+(crumb||"")+"<h1>"+esc(title)+"</h1>"+(sub?'<p class="sub">'+sub+"</p>":"")+"</div></div>";}
+function renderMain(){
+  const m=$("#main");
+  if(route.view==="home"){m.innerHTML=homeView();return;}
+  if(route.view==="list"){const rows=[...S[route.module]].sort(SORT[route.module]);
+    m.innerHTML=head(MODULES.find(x=>x[0]===route.module)[1],plural(rows.length,"record")+" · My items")+table(route.module,rows);return;}
+  if(route.view==="detail"){m.innerHTML=detailView(route.module,route.id);}
+}
+function homeView(){
+  const o=openOpps(),tot=o.reduce((s,x)=>s+x.amount,0),td=todays(),od=overdue(),cs=closingWithin(30);
+  const hr=NOW.getHours(),greet=hr<12?"Good morning":hr<18?"Good afternoon":"Good evening";
+  return head(greet+", Sam","Here's your day in Keystone CRM. Ask Assist in the side panel for anything else.")+
+  '<div class="kpis">'+
+   '<div class="kpi"><div class="kpi-label">Open pipeline</div><div class="kpi-value">'+money(tot)+'</div><div class="kpi-note">'+plural(o.length,"opportunity","opportunities")+"</div></div>"+
+   '<div class="kpi"><div class="kpi-label">Meetings today</div><div class="kpi-value">'+td.length+'</div><div class="kpi-note">'+(td[0]?esc(td[0].name)+" at "+fmtT(td[0].start):"Nothing scheduled")+"</div></div>"+
+   '<div class="kpi"><div class="kpi-label">Overdue tasks</div><div class="kpi-value">'+od.length+'</div><div class="kpi-note">'+(od[0]?"Oldest due "+fmtD(od[0].due):"All clear")+"</div></div>"+
+   '<div class="kpi"><div class="kpi-label">Closing in 30 days</div><div class="kpi-value">'+cs.length+'</div><div class="kpi-note">'+money(cs.reduce((s,x)=>s+x.amount,0))+"</div></div></div>"+
+  '<div class="cols">'+
+   '<section class="panel"><h2>Upcoming meetings</h2><ul class="feed">'+(upcoming().map(x=>"<li><span>"+rl("meetings",x)+" · "+esc(A(x.account).name)+(isGuest(x)?' <span class="pill warn">Guest</span>':"")+'</span><span class="meta">'+fmtD(x.start)+" "+fmtT(x.start)+"</span></li>").join("")||'<li><span class="sub">No upcoming meetings</span></li>')+"</ul></section>"+
+   '<section class="panel"><h2>Tasks needing attention</h2><ul class="feed">'+S.tasks.filter(t=>t.status!=="Completed").sort((a,b)=>a.due-b.due).map(t=>"<li><span>"+rl("tasks",t)+(dayDiff(t.due)<0?' <span class="pill bad">Overdue</span>':"")+'</span><span class="meta">'+fmtD(t.due)+"</span></li>").join("")+"</ul></section>"+
+   '<section class="panel"><h2>Closing soon</h2><ul class="feed">'+(cs.map(x=>"<li><span>"+rl("opportunities",x)+" · "+money(x.amount)+'</span><span class="meta">'+fmtD(x.close)+"</span></li>").join("")||'<li><span class="sub">Nothing closes in the next 30 days</span></li>')+"</ul></section>"+
+  "</div>"+
+  '<p class="footnote">Sample data for the AI Chat regression demo. Dates are generated relative to today ('+fmtDY(TODAY)+"), so time-window questions always have matching records. "+(ADMIN?"":"")+"</p>";
+}
+function detailView(mod,id){
+  const r=(S[mod]||[]).find(x=>x.id===id);
+  const crumb='<div class="crumb"><button type="button" data-nav="'+mod+'">'+(MODULES.find(x=>x[0]===mod)||[,mod])[1]+"</button><span>/</span><span>"+esc(SINGULAR[mod]||"")+"</span></div>";
+  if(!r)return head("Record not found","This record no longer exists. It may have been changed during the demo.",crumb);
+  const f=[];const add=(k,v)=>f.push("<div><dt>"+k+"</dt><dd>"+v+"</dd></div>");
+  if(mod==="accounts"){add("Industry",esc(r.industry));add("Type",esc(r.type));add("City",esc(r.city));add("Website",esc(r.website||"Not set"));add("Phone",esc(r.phone));add("Employees",r.employees.toLocaleString("en-GB"));add("Assigned to",esc(r.owner));add("Modified",fmtDT(r.modified));}
+  if(mod==="opportunities"){add("Account",acctLink(r.account));add("Sales stage",esc(r.stage));add("Status",statusPill(r.status));add("Amount",money(r.amount));add("Probability",r.prob+"%");add("Expected close date",fmtDY(r.close));add("Next step",esc(r.next));add("Modified",fmtDT(r.modified));}
+  if(mod==="contacts"){add("Title",esc(r.title||"—"));add("Account",acctLink(r.account));add("Email",esc(r.email||"—"));add("Phone",esc(r.phone||"—"));add("Modified",fmtDT(r.modified));}
+  if(mod==="leads"){add("Company",esc(r.company));add("Status",statusPill(r.status));add("Lead source",esc(r.source));add("Created",fmtDT(r.created));}
+  if(mod==="meetings"){add("Account",acctLink(r.account));add("Status",statusPill(r.status));add("Start",fmtDT(r.start));add("Duration",r.mins+" minutes");add("Location",esc(r.location));add("Organizer",esc(r.organizer));add("Invitees",esc(r.invitees.join(", ")));add("My role",isGuest(r)?"Guest":"Organizer");if(r.opp)add("Related opportunity",rl("opportunities",O(r.opp)));}
+  if(mod==="calls"){add("Account",acctLink(r.account));add("Contact",esc(r.contact));add("Status",statusPill(r.status));add("Date",fmtDT(r.date));add("Outcome",esc(r.outcome));}
+  if(mod==="tasks"){add("Account",acctLink(r.account));add("Priority",esc(r.priority));add("Status",statusPill(r.status));add("Due date",fmtDY(r.due)+(r.status!=="Completed"&&dayDiff(r.due)<0?' <span class="pill bad">Overdue</span>':""));if(r.completed)add("Completed",fmtDT(r.completed));}
+  let html=head(r.name,"",crumb)+'<div class="stack"><section class="panel"><dl class="fields">'+f.join("")+"</dl></section>";
+  if(mod==="accounts"){["opportunities","contacts","meetings","calls","tasks"].forEach(k=>{const rows=S[k].filter(x=>x.account===r.id).sort(SORT[k]);html+='<section><h2>'+MODULES.find(x=>x[0]===k)[1]+" ("+rows.length+")</h2>"+table(k,rows,true)+"</section>";});}
+  return html+"</div>";
+}
+
+/* ---------- Demo controls ---------- */
+function renderAdmin(){
+  const p=$("#admin-panel");p.hidden=!ADMIN;
+  const on=FAULTS.filter(([k])=>F[k]).map(x=>x[1]);
+  const b=$("#fault-badge");b.hidden=!(ADMIN&&on.length);b.textContent="Faults on: "+on.join(", ");
+  if(!ADMIN)return;
+  $("#admin-body").innerHTML=FAULTS.map(([k,l,dsc])=>'<label class="fault"><input type="checkbox" id="fault-'+k+'" data-fault="'+k+'"'+(F[k]?" checked":"")+"><span>"+l+"</span><small>"+dsc+"</small></label>").join("")+
+   '<div class="admin-actions"><button type="button" class="btn" id="reset-data">Reset data</button><button type="button" class="btn" id="clear-faults">Clear faults</button></div>'+
+   '<small class="sub">Faults also load from the link, for example <code>#offtopic.slow</code>. Add <code>admin</code> to show this panel.</small>';
+}
+document.addEventListener("change",e=>{const k=e.target.dataset&&e.target.dataset.fault;if(!k)return;F[k]=e.target.checked;if(k==="relabel"||k==="shadow")mountChat();renderAdmin();$("#admin-panel").open=true;renderMain();});
+document.addEventListener("click",e=>{
+  const n=e.target.closest("[data-nav]");if(n){const k=n.dataset.nav;go(k==="home"?{view:"home"}:{view:"list",module:k});return;}
+  const r=e.target.closest(".rowlink");if(r){go({view:"detail",module:r.dataset.module,id:r.dataset.id});return;}
+  if(e.target.closest("#reset-data")){S=buildSeed();messages=[];ctx={choice:null};renderLog();go({view:"home"});return;}
+  if(e.target.closest("#clear-faults")){FAULTS.forEach(([k])=>F[k]=false);mountChat();renderAdmin();$("#admin-panel").open=true;renderMain();return;}
+  if(e.target.closest("#assist-toggle"))setDock(!dockOpen);
+});
+window.addEventListener("hashchange",()=>{const prevShadow=F.shadow,prevRel=F.relabel;readHash();if(F.shadow!==prevShadow||F.relabel!==prevRel)mountChat();renderAdmin();if(FORCE_CHAT)setDock(true);});
+
+/* ---------- Boot ---------- */
+readHash();
+$("#today-chip").textContent=fmtDY(TODAY);
+renderNav();renderMain();mountChat();renderAdmin();
+setDock(FORCE_CHAT||window.innerWidth>900);
+window.KeystoneAssist={respond:q=>respond(q),reset:()=>{S=buildSeed();ctx={choice:null};},faults:F};
+})();
+</script>
+
+</body></html>
