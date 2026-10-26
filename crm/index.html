@@ -218,6 +218,25 @@ th[aria-sort="descending"] button.sort::after{content:"▼";font-size:9px}
 
 @media (max-width:900px){.search-top{display:none}}
 @media (max-width:600px){.form-grid{grid-template-columns:1fr}.backdrop{padding:0;align-items:stretch}.modal{border-radius:0;max-height:none;min-height:100%}}
+
+/* Knowledge base links and viewer */
+.nav-kb{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.12)}
+.nav-kb .nav-btn{font-size:13px;width:100%;justify-content:flex-start;gap:8px}
+.nav-kb .kb-ico{opacity:.75;font-size:12px}
+.modal.wide{width:min(980px,100%)}
+.kb-actions{display:flex;gap:8px;align-items:center}
+.kb-doc{font-size:14px;line-height:1.55}
+.kb-doc h1{font-size:22px;margin:0 0 10px}.kb-doc h2{font-size:18px;margin:22px 0 8px}.kb-doc h3{font-size:15px;margin:16px 0 6px}.kb-doc h4{font-size:14px;margin:12px 0 4px}
+.kb-doc p{margin:0 0 10px}.kb-doc ul,.kb-doc ol{margin:0 0 10px;padding-left:22px}.kb-doc li{margin:2px 0}
+.kb-doc hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+.kb-doc code{font-family:var(--font-mono);font-size:12px;background:var(--surface-2);padding:1px 4px;border-radius:4px;overflow-wrap:anywhere}
+.kb-doc .tbl{overflow-x:auto;margin:0 0 12px;padding-bottom:1px}
+.kb-actions a{text-decoration:none;display:inline-flex;align-items:center}
+.kb-doc table{border-collapse:collapse;min-width:100%;font-size:13px}
+.kb-doc th,.kb-doc td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.kb-doc th{background:var(--surface-2)}
+.kb-doc a{color:var(--accent)}
+@media (max-width:900px){.nav-kb{display:none}}
 </style></head><body style="margin:0">
 <section class="login" id="login-screen" aria-labelledby="login-title" hidden>
   <div class="login-card">
@@ -253,6 +272,8 @@ th[aria-sort="descending"] button.sort::after{content:"▼";font-size:9px}
       <button class="avatar" id="user-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="user-menu"></button>
       <div class="menu" id="user-menu" hidden>
         <div class="who"><strong id="menu-name"></strong><span id="menu-role"></span><br><span id="menu-email"></span></div>
+        <button type="button" id="menu-kb-app" data-kb="app">CRM application KB</button>
+        <button type="button" id="menu-kb-assist" data-kb="assist">Assist chatbot KB</button>
         <button type="button" id="menu-reset">Reset demo data</button>
         <button type="button" id="menu-signout">Sign out</button>
       </div>
@@ -1294,7 +1315,60 @@ let route={view:"home"};
 function go(r){route=r;renderNav();renderMain();$("#main").scrollTop=0;}
 function renderNav(){
   const cur=route.view==="home"?"home":route.module;
-  $("#sidenav").innerHTML='<div class="nav-label">Modules</div>'+MODULES.map(([k,l])=>'<button type="button" class="nav-btn" data-nav="'+k+'" id="nav-'+k+'"'+(k===cur?' aria-current="page"':"")+"><span>"+l+"</span>"+(k!=="home"?'<span class="nav-count">'+S[k].length+"</span>":"")+"</button>").join("");
+  $("#sidenav").innerHTML='<div class="nav-label">Modules</div>'+MODULES.map(([k,l])=>'<button type="button" class="nav-btn" data-nav="'+k+'" id="nav-'+k+'"'+(k===cur?' aria-current="page"':"")+"><span>"+l+"</span>"+(k!=="home"?'<span class="nav-count">'+S[k].length+"</span>":"")+"</button>").join("")+
+    '<div class="nav-kb"><div class="nav-label">Knowledge base</div>'+KB_DOCS.map(k=>'<button type="button" class="nav-btn" data-kb="'+k.key+'" id="kb-'+k.key+'"><span class="kb-ico" aria-hidden="true">&#128196;</span><span>'+esc(k.label)+"</span></button>").join("")+"</div>";
+}
+/* ---------- Knowledge base viewer ---------- */
+const KB_DOCS=[
+  {key:"app",label:"CRM application KB",title:"Keystone CRM: Application Reference",file:"kb/Keystone-CRM-Application-KB-Source.md"},
+  {key:"assist",label:"Assist chatbot KB",title:"Keystone CRM Assist: AI Chat Assistant Reference",file:"kb/Keystone-CRM-Assist-KB-Source.md"}
+];
+const KB_CACHE={};
+function kbInline(x){
+  return esc(x).replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g,"$1<em>$2</em>")
+    .replace(/(https?:\/\/[^\s<)|]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+function kbRender(src){
+  const lines=src.replace(/\r/g,"").split("\n");let h="",i=0,list=null;
+  const closeList=()=>{if(list){h+="</"+list+">";list=null;}};
+  const cells=l=>l.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim());
+  while(i<lines.length){
+    const l=lines[i];let m;
+    if(/^\s*\|/.test(l)&&i+1<lines.length&&/^\s*\|?\s*:?-{3}/.test(lines[i+1])){
+      closeList();const hd=cells(l);i+=2;let rows="";
+      while(i<lines.length&&/^\s*\|/.test(lines[i])){rows+="<tr>"+cells(lines[i]).map(c=>"<td>"+kbInline(c)+"</td>").join("")+"</tr>";i++;}
+      h+='<div class="tbl"><table><thead><tr>'+hd.map(c=>"<th>"+kbInline(c)+"</th>").join("")+"</tr></thead><tbody>"+rows+"</tbody></table></div>";continue;
+    }
+    if((m=l.match(/^(#{1,4})\s+(.*)/))){closeList();const n=m[1].length;h+="<h"+n+">"+kbInline(m[2])+"</h"+n+">";}
+    else if(/^\s*-{3,}\s*$/.test(l)){closeList();h+="<hr>";}
+    else if((m=l.match(/^\s*[-*]\s+(.*)/))){if(list!=="ul"){closeList();h+="<ul>";list="ul";}h+="<li>"+kbInline(m[1])+"</li>";}
+    else if((m=l.match(/^\s*\d+\.\s+(.*)/))){if(list!=="ol"){closeList();h+="<ol>";list="ol";}h+="<li>"+kbInline(m[1])+"</li>";}
+    else if(!l.trim())closeList();
+    else{closeList();h+="<p>"+kbInline(l)+"</p>";}
+    i++;
+  }
+  closeList();return h;
+}
+function kbDownload(doc,text){
+  try{const url=URL.createObjectURL(new Blob([text],{type:"text/markdown"}));const a=document.createElement("a");a.href=url;a.download=doc.file.split("/").pop();document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  catch(e){window.open(doc.file,"_blank","noopener");}
+}
+async function openKB(key){
+  const doc=KB_DOCS.find(k=>k.key===key);if(!doc)return;closeMenu();
+  openModal(modalHead(doc.title)+'<div class="modal-body"><div class="kb-doc" id="kb-viewer" data-kb="'+doc.key+'" data-state="loading"><p>Loading…</p></div></div>'+
+    '<div class="modal-foot"><div class="kb-actions"><a class="btn-ghost" id="kb-raw" href="'+esc(doc.file)+'" target="_blank" rel="noopener">Open as text</a><button type="button" class="btn-primary" id="kb-download">Download .md</button></div></div>');
+  $("#modal").classList.add("wide");
+  const view=$("#kb-viewer");
+  try{
+    const text=KB_CACHE[key]||(KB_CACHE[key]=await (await fetch(doc.file,{cache:"no-cache"}).then(r=>{if(!r.ok)throw new Error(r.status);return r;})).text());
+    if(!document.contains(view))return;
+    view.innerHTML=kbRender(text);view.dataset.state="done";
+    $("#kb-download").onclick=()=>kbDownload(doc,text);
+  }catch(e){
+    if(!document.contains(view))return;
+    view.dataset.state="error";view.innerHTML="<p>The knowledge base file could not be loaded here. Open the published app link, or use <strong>Open as text</strong>.</p>";
+    $("#kb-download").onclick=()=>window.open(doc.file,"_blank","noopener");
+  }
 }
 function renderMain(){
   const m=$("#main");
@@ -1369,6 +1443,7 @@ document.addEventListener("change",e=>{
 document.addEventListener("click",e=>{
   const T=e.target;
   if(!T.closest("#user-menu")&&!T.closest("#user-menu-btn")&&!$("#user-menu").hidden)closeMenu();
+  const kbb=T.closest("button[data-kb]");if(kbb){openKB(kbb.dataset.kb);return;}
   const n=T.closest("[data-nav]");if(n){const k=n.dataset.nav;go(k==="home"?{view:"home"}:{view:"list",module:k});return;}
   const r=T.closest(".rowlink");if(r){go({view:"detail",module:r.dataset.module,id:r.dataset.id});return;}
   const nb=T.closest("[data-new]");if(nb){let pf=null;try{pf=nb.dataset.prefill?JSON.parse(nb.dataset.prefill):null;}catch(x){}openForm(nb.dataset.new,null,pf);return;}
