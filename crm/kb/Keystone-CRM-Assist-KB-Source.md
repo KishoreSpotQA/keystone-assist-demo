@@ -1,6 +1,6 @@
 # Keystone CRM Assist: AI Chat Assistant Reference (Knowledge Base Source)
 
-**Upload this file to the Touchstone Knowledge Base as one source.** It describes **Assist**, the read-only AI chat assistant built into the Keystone CRM web application: how to open it, its elements, how answers are produced, what it can answer, how it refuses, the expected answers on the seed data, test hooks and known limitations.
+**Upload this file to the Touchstone Knowledge Base as one source.** It describes **Assist**, the read-only AI chat assistant built into the Keystone CRM web application: how to open it, its elements, how answers are produced, what it can answer, how it refuses, the expected answers on the seed data, test hooks, demo controls and one open item.
 
 **Companion source:** *Keystone CRM: Application Reference* describes the CRM screens (sign-in, modules, forms, lists, record pages, workflows). Upload both sources when requirements need to check chat answers against CRM screens. This source does not repeat CRM screen behaviour.
 
