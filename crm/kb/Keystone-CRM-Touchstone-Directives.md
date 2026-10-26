@@ -3,7 +3,13 @@
 > Create these as Touchstone directives. **Do not upload this file as a source.** They go with the two Keystone CRM sources: `Keystone-CRM-Application-KB-Source.md` (CRM screens) and `Keystone-CRM-Assist-KB-Source.md` (Assist chatbot).
 
 **Application:** Keystone CRM demo app, https://kishorespotqa.github.io/keystone-assist-demo/crm/
-**Environment variable:** `crmUrl` = the link above
+**Environment variables (Virtuoso Environment Manager):**
+
+| Variable | Value | Sensitive |
+|---|---|---|
+| `crmUrl` | https://kishorespotqa.github.io/keystone-assist-demo/crm/ | No |
+| `crmUser` | sam.carter@keystone.example | No |
+| `crmPassword` | Keystone#2026 | Yes |
 **Set at:** project level, before the first generation
 
 ## Summary by category
@@ -62,9 +68,9 @@ Scope / Source (CRM application or Assist) / Pre-conditions / Test data / Accept
 
 ### B1. `Start state and test data`
 ```
-Start every journey at crmUrl. Unless the journey tests sign-in, open crmUrl with #autologin appended to sign in as Sam Carter. Each execution runs in a fresh browser, so the data starts as the seed in the source with dates relative to today: never put fixed calendar dates in steps or data tables. Journeys that create records must use unique names so they do not clash with seed records, and must not depend on records created by another journey.
+Start every journey at crmUrl and sign in through the sign-in page: enter the email from the environment variable crmUser and the password from crmPassword in the Email (#login-email) and Password (#login-password) fields, then click Sign in (#login-submit) and confirm the Home page shows "Good morning", "Good afternoon" or "Good evening" with the user's first name. Do not use #autologin. Each execution runs in a fresh browser, so the data starts as the seed in the source with dates relative to today: never put fixed calendar dates in steps or data tables. Journeys that create records must use unique names so they do not clash with seed records, and must not depend on records created by another journey.
 ```
-**Fixes:** journeys that stop at the sign-in page, drift with the calendar, or break when run in a different order.
+**Fixes:** journeys that skip the sign-in page, put credentials in steps, drift with the calendar, or break when run in a different order.
 
 ### B2. `Wait for the finished answer`
 ```
@@ -80,7 +86,7 @@ To ask Assist a question, make sure the Assist panel is open (if #assist-input i
 
 ### C1. `Element identification`
 ```
-Identify elements by the ids in the element hooks tables of the sources (#nav-<module>, #btn-new, #f-<field>, #btn-save, #btn-edit, #btn-delete, #confirm-ok, #assist-input, #assist-last-answer) in preference to text or position. Leave date fields at their defaults unless the test needs a specific date. When one is needed, set the value as YYYY-MM-DD (date) or YYYY-MM-DDThh:mm (date and time), and if typing does not set it, set the value with a script step instead. When fixing a failing chat assertion, assert on record names, counts or the word read-only, never on a sentence copied from one run.
+Identify elements by the ids in the element hooks tables of the sources (#login-email, #login-password, #login-submit, #nav-<module>, #btn-new, #f-<field>, #btn-save, #btn-edit, #btn-delete, #confirm-ok, #assist-input, #assist-last-answer) in preference to text or position. Leave date fields at their defaults unless the test needs a specific date. When one is needed, set the value as YYYY-MM-DD (date) or YYYY-MM-DDThh:mm (date and time), and if typing does not set it, set the value with a script step instead. When fixing a failing chat assertion, assert on record names, counts or the word read-only, never on a sentence copied from one run.
 ```
 **Fixes:** brittle steps, and "fixes" that pin one run's wording and fail on the next.
 
@@ -91,7 +97,7 @@ Identify elements by the ids in the element hooks tables of the sources (#nav-<m
 2. Add the directives tab by tab: **Analyst**, then **Architect**, then **Autopilot**.
 3. Check for name clashes with organisation-level directives: a project directive with the same name replaces the organisation one.
 4. Click **Preview prompt** on each tab and confirm every directive is **saved and enabled**.
-5. Set the environment variable `crmUrl`.
+5. Add the environment variables `crmUrl`, `crmUser` and `crmPassword` (sensitive) in Environment Manager and select that environment for executions.
 6. Generate requirements per source, then journeys.
 
 ## Verifying they landed
@@ -103,7 +109,7 @@ Identify elements by the ids in the element hooks tables of the sources (#nav-<m
 | A3 Grounded chat answers | Named records (Data Analytics Platform, Cloud Migration Initiative…) and "must not appear" records for time windows |
 | A4 Read-only means unchanged data | A check of the Leads or Contacts count after "Delete all my leads" or "Create a new contact named John Test" |
 | A5 Requirement layout | Every requirement has a "Not covered" section |
-| B1 Start state and test data | Journeys open crmUrl with #autologin; no fixed dates in data tables |
+| B1 Start state and test data | Journeys open crmUrl, sign in with $crmUser and $crmPassword through the sign-in page, and have no fixed dates in data tables |
 | B2 Wait for the finished answer | A wait for #assist-last-answer before every chat assertion |
 | C1 Element identification | Steps that use #f-… and #btn-… ids |
 
