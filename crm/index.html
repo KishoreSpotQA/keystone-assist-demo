@@ -376,9 +376,11 @@ const O=id=>S.opportunities.find(o=>o.id===id);
 const L=(type,id,label)=>"[["+type+":"+id+"|"+label+"]]";
 const plural=(n,w,p)=>n+" "+(n===1?w:(p||w+"s"));
 const isGuest=m=>m.organizer!==ME&&m.invitees.includes(ME);
-const openOpps=()=>S.opportunities.filter(o=>o.status==="Open").sort((a,b)=>a.close-b.close);
-const upcoming=()=>S.meetings.filter(m=>m.status==="Planned"&&dayDiff(m.start)>=0).sort((a,b)=>a.start-b.start);
-const overdue=()=>S.tasks.filter(t=>t.status!=="Completed"&&dayDiff(t.due)<0).sort((a,b)=>a.due-b.due);
+const mine=arr=>arr.filter(r=>r.owner===ME);
+const myMeetings=()=>S.meetings.filter(m=>m.organizer===ME||m.invitees.includes(ME));
+const openOpps=()=>mine(S.opportunities).filter(o=>o.status==="Open").sort((a,b)=>a.close-b.close);
+const upcoming=()=>myMeetings().filter(m=>m.status==="Planned"&&dayDiff(m.start)>=0).sort((a,b)=>a.start-b.start);
+const overdue=()=>mine(S.tasks).filter(t=>t.status!=="Completed"&&dayDiff(t.due)<0).sort((a,b)=>a.due-b.due);
 const todays=()=>upcoming().filter(m=>dayDiff(m.start)===0);
 function closingWithin(n){return F.window?openOpps():openOpps().filter(o=>{const x=dayDiff(o.close);return x>=0&&x<=n;});}
 function none(what){return pick(["No "+what+" found in your CRM.","I searched your CRM but couldn't find any "+what+".","I didn't find any "+what+" for you."]);}
@@ -386,7 +388,7 @@ function none(what){return pick(["No "+what+" found in your CRM.","I searched yo
 /* ---------- Assist response engine ---------- */
 let ctx={choice:null};
 function findAccount(t){const byName=[...S.accounts].sort((a,b)=>b.name.length-a.name.length).find(a=>a.name&&t.includes(a.name.toLowerCase()));if(byName)return byName;if(/\ba ?to ?z\b|atoz/.test(t))return S.accounts.find(a=>a.id==="acc-atoz")||null;if(/regent/.test(t))return S.accounts.find(a=>a.id==="acc-regent")||null;return null;}
-function findContact(t){return S.contacts.find(c=>{const n=String(c.name||"").toLowerCase();if(!n)return false;const parts=n.split(/\s+/);const last=parts[parts.length-1];return t.includes(n)||(parts.length>1&&last.length>2&&new RegExp("\\b"+last.replace(/[^a-z0-9]/g,"")+"\\b").test(t));});}
+function findContact(t){return S.contacts.find(c=>{const n=String(c.name||"").toLowerCase();if(!n)return false;const parts=n.split(/\s+/);const last=parts[parts.length-1];const w=x=>x.length>4&&new RegExp("\\b"+x.replace(/[^a-z0-9]/g,"")+"\\b").test(t);return t.includes(n)||(parts.length>1&&(w(last)||w(parts[0])));});}
 
 const isHowTo=t=>/^(how (do|can|should|would) (i|we)\b|how to\b|what('s| is) the (best )?way to\b|steps to\b|walk me through\b|guide me\b|show me how\b|can you show me how\b)/.test(t);
 const isMutation=t=>/^(please\s+)?((can|could|would) you\s+)?(go ahead and\s+)?(delete|remove|erase|wipe|create|add|insert|update|edit|change|modify|rename|reassign|assign|mark|log|schedule|book|merge|convert|close)\b/.test(t)||/\b(delete|erase|wipe)\b/.test(t);
@@ -421,8 +423,10 @@ function respond(q){
     if(/update|latest|news|activit|happening|status/.test(t))return latest(acct);
     return accountSummary(acct);
   }
+  const closedQ=/closed|\bwon\b|\bwin\b|\blost\b|\blose\b/.test(t)||(/\bclose\b/.test(t)&&/quarter|\bdid\b|\bhave i\b|\bwe\b.*\bthis\b/.test(t)&&!/\bnext\b|\bdays?\b|\bsoon\b|\bupcoming\b/.test(t));
+  if(/quarter/.test(t)&&/\b(close|closing|closed|won|win|lost|lose)\b/.test(t)&&!/\bnext\b|\bdays?\b/.test(t))return /closed|\bwon\b|\bwin\b|\blost\b|\blose\b|\bdid\b|\bhave\b/.test(t)?closedOpps(t):closingSoon(t);
   if(/opportunit|\bdeals?\b|pipeline/.test(t)){
-    if(/closed|\bwon\b|\blost\b/.test(t))return closedOpps(t);
+    if(closedQ)return closedOpps(t);
     if(/clos/.test(t))return closingSoon(t);
     return listOpen();
   }
@@ -458,22 +462,23 @@ function capabilities(){
   "- **Pipeline insights:** opportunities closed this quarter or closing in the next 30 days\n"+
   "- **Meeting preparation:** upcoming meetings and prep briefs for a named account\n"+
   "- **Work assistance:** daily suggestions, follow-ups, weekly priorities and accomplishment summaries\n"+
-  "- **How-to guidance:** step-by-step help for creating records, logging calls and importing data\n\n"+
+  "- **How-to guidance:** step-by-step help for creating records, logging calls and scheduling meetings in Keystone CRM\n\n"+
   "I have read-only access to your CRM data, so I can't create, update or delete records.";
 }
 
 /* Data queries */
 function listOpen(){
   if(F.noretrieval)return none("open opportunities");
-  const o=openOpps(),tot=o.reduce((s,x)=>s+x.amount,0);
+  const o=openOpps(),tot=o.reduce((s,x)=>s+x.amount,0);if(!o.length)return none("open opportunities");
   return pick(["You have **"+plural(o.length,"open opportunity","open opportunities")+"** worth "+money(tot)+" in your pipeline:","I found "+plural(o.length,"open opportunity","open opportunities")+" in your pipeline, worth "+money(tot)+" in total:"])+"\n\n"+
     o.map(x=>"- "+L("opportunities",x.id,x.name)+" ("+A(x.account).name+"): "+x.stage+", "+money(x.amount)+", closing "+fmtD(x.close))
     .join("\n")+"\n\n"+pick(["Want me to show which of these close in the next 30 days?","The nearest close date is "+fmtD(o[0].close)+" for "+o[0].name+"."]);
 }
 function listLeads(){
-  if(F.noretrieval||!S.leads.length)return none("leads assigned to you");
-  return pick(["You have "+plural(S.leads.length,"lead")+" assigned to you:","Here are the "+plural(S.leads.length,"lead")+" I found assigned to you:"])+"\n\n"+
-    S.leads.map(l=>"- "+L("leads",l.id,l.name)+", "+l.company+" ("+l.status+", source: "+l.source+", created "+rel(l.created)+")").join("\n");
+  const ls=mine(S.leads);
+  if(F.noretrieval||!ls.length)return none("leads assigned to you");
+  return pick(["You have "+plural(ls.length,"lead")+" assigned to you:","Here are the "+plural(ls.length,"lead")+" I found assigned to you:"])+"\n\n"+
+    ls.map(l=>"- "+L("leads",l.id,l.name)+", "+l.company+" ("+l.status+", source: "+l.source+", created "+rel(l.created)+")").join("\n");
 }
 function mtgLine(m){return L("meetings",m.id,m.name)+" with "+A(m.account).name+", "+fmtD(m.start)+" at "+fmtT(m.start)+(isGuest(m)?" (you're a guest)":"");}
 function listUpcoming(){
@@ -483,18 +488,18 @@ function listUpcoming(){
 }
 function meetingsMonth(){
   if(F.noretrieval)return none("meetings this month");
-  const ms=S.meetings.filter(m=>m.start.getMonth()===TODAY.getMonth()&&m.start.getFullYear()===TODAY.getFullYear()).sort((a,b)=>a.start-b.start);
+  const ms=myMeetings().filter(m=>m.start.getMonth()===TODAY.getMonth()&&m.start.getFullYear()===TODAY.getFullYear()).sort((a,b)=>a.start-b.start);
   if(!ms.length)return "There are no meetings this month ("+monthName+").";
   return "You have "+plural(ms.length,"meeting")+" this month ("+monthName+"):\n\n"+ms.map(m=>"- "+L("meetings",m.id,m.name)+" with "+A(m.account).name+", "+fmtD(m.start)+" at "+fmtT(m.start)+", status: "+m.status).join("\n");
 }
 function pastMeetings(){
   if(F.noretrieval)return none("held meetings");
-  const ms=S.meetings.filter(m=>m.status==="Held").sort((a,b)=>b.start-a.start);
+  const ms=myMeetings().filter(m=>m.status==="Held").sort((a,b)=>b.start-a.start);if(!ms.length)return none("held meetings");
   return "Your recently held meetings:\n\n"+ms.map(m=>"- "+L("meetings",m.id,m.name)+" with "+A(m.account).name+", "+rel(m.start)).join("\n");
 }
 function recentContacts(){
   if(F.noretrieval)return none("recent contacts");
-  const c=[...S.contacts].sort((a,b)=>b.modified-a.modified);
+  const c=mine(S.contacts).sort((a,b)=>b.modified-a.modified);if(!c.length)return none("recent contacts");
   return pick(["Here are your "+c.length+" most recently modified contacts:","I found "+c.length+" recent contacts, most recently updated first:"])+"\n\n"+
     c.map(x=>"- "+L("contacts",x.id,x.name)+", "+x.title+" at "+A(x.account).name+" (modified "+rel(x.modified)+")").join("\n");
 }
@@ -506,12 +511,12 @@ function overdueTasks(){
 }
 function myTasks(){
   if(F.noretrieval)return none("tasks");
-  const open=S.tasks.filter(t=>t.status!=="Completed").sort((a,b)=>a.due-b.due);
+  const open=mine(S.tasks).filter(t=>t.status!=="Completed").sort((a,b)=>a.due-b.due);if(!open.length)return "You have no open tasks.";
   return "You have "+plural(open.length,"open task")+":\n\n"+open.map(t=>"- "+L("tasks",t.id,t.name)+", due "+fmtD(t.due)+(dayDiff(t.due)<0?" (overdue)":"")).join("\n");
 }
 function recentCalls(){
   if(F.noretrieval)return none("calls");
-  const c=[...S.calls].sort((a,b)=>b.date-a.date);
+  const c=mine(S.calls).sort((a,b)=>b.date-a.date);if(!c.length)return none("calls");
   return "Your recent calls:\n\n"+c.map(x=>"- "+L("calls",x.id,x.name)+" with "+x.contact+" ("+A(x.account).name+"), "+rel(x.date)+": "+x.outcome).join("\n");
 }
 function contactSummary(c){
@@ -522,20 +527,21 @@ function contactSummary(c){
 /* Pipeline */
 function closedOpps(t){
   if(F.noretrieval)return none("closed opportunities this quarter");
-  let c=S.opportunities.filter(o=>o.status!=="Open");
+  let c=mine(S.opportunities).filter(o=>o.status!=="Open");
   if(!F.window)c=c.filter(o=>o.close>=Q_START&&o.close<=Q_END);
-  if(/\bwon\b/.test(t))c=c.filter(o=>o.status==="Closed Won");
-  if(/\blost\b/.test(t))c=c.filter(o=>o.status==="Closed Lost");
-  if(!c.length)return "You have no closed opportunities this quarter ("+Q_LABEL+").";
+  if(/\bwon\b|\bwin\b/.test(t))c=c.filter(o=>o.status==="Closed Won");
+  if(/\blost\b|\blose\b/.test(t))c=c.filter(o=>o.status==="Closed Lost");
+  const kind=/\bwon\b|\bwin\b/.test(t)?"won":/\blost\b|\blose\b/.test(t)?"lost":"closed";
+  if(!c.length)return "You have no "+(kind==="closed"?"closed":"Closed "+kind.charAt(0).toUpperCase()+kind.slice(1))+" opportunities this quarter ("+Q_LABEL+").";
   return pick(["This quarter ("+Q_LABEL+", from "+fmtDY(Q_START)+") you've closed "+plural(c.length,"opportunity","opportunities")+":","I found "+plural(c.length,"closed opportunity","closed opportunities")+" this quarter ("+Q_LABEL+"):"])+"\n\n"+
     c.map(o=>"- "+L("opportunities",o.id,o.name)+" ("+A(o.account).name+"): "+o.status+", "+money(o.amount)+", closed "+fmtDY(o.close)).join("\n");
 }
 function closingSoon(t){
   if(F.noretrieval)return none("opportunities closing soon");
-  const m=t.match(/(\d+)\s*days?/);const n=m?+m[1]:30;
-  const c=closingWithin(n);
-  if(!c.length)return "No opportunities are closing in the next "+n+" days.";
-  return pick([plural(c.length,"opportunity is","opportunities are")+" closing in the next "+n+" days:","I found "+plural(c.length,"opportunity","opportunities")+" closing within the next "+n+" days:"])+"\n\n"+
+  const m=t.match(/(\d+)\s*days?/);const qtr=!m&&/quarter/.test(t);const n=m?+m[1]:qtr?dayDiff(Q_END):30;
+  const c=closingWithin(n);const span=qtr?"by the end of this quarter ("+Q_LABEL+", "+fmtDY(Q_END)+")":"in the next "+n+" days";
+  if(!c.length)return "No opportunities are closing "+span+".";
+  return pick([plural(c.length,"opportunity is","opportunities are")+" closing "+span+":","I found "+plural(c.length,"opportunity","opportunities")+" closing "+(qtr?span:"within the next "+n+" days")+":"])+"\n\n"+
     c.map(o=>"- "+L("opportunities",o.id,o.name)+" ("+A(o.account).name+"): closes "+fmtD(o.close)+" ("+rel(o.close)+"), "+o.stage+", "+money(o.amount)).join("\n");
 }
 
@@ -543,18 +549,24 @@ function closingSoon(t){
 function workToday(){
   const od=overdue(),td=todays(),cs=closingWithin(30);
   let s=pick(["Here's how I can help with your work today. Based on your CRM, I'd suggest this order:","Here's a suggested plan for today, based on your tasks, meetings and opportunities:"])+"\n\n";
-  s+="1. **Clear overdue tasks:** you have "+plural(od.length,"overdue task")+(od.length?", starting with "+L("tasks",od[0].id,od[0].name)+" ("+(-dayDiff(od[0].due))+" days overdue)":"")+".\n";
+  s+="1. **Clear overdue tasks:** you have "+(od.length?plural(od.length,"overdue task"):"no overdue tasks")+(od.length?", starting with "+L("tasks",od[0].id,od[0].name)+" ("+(-dayDiff(od[0].due))+" days overdue)":"")+".\n";
   s+="2. **Prepare for today's meetings:** "+(td.length?td.map(m=>L("meetings",m.id,m.name)+" at "+fmtT(m.start)+" with "+A(m.account).name).join(", "):"no meetings today, so it's a good day for outreach")+".\n";
   s+="3. **Move opportunities closing soon:** "+(cs.length?cs.map(o=>L("opportunities",o.id,o.name)+" ("+rel(o.close)+")").join(", "):"nothing closes in the next 30 days")+".\n\n";
   return s+"I can also look up records, build a meeting prep brief or walk you through a how-to in Keystone CRM.";
 }
 function followUps(){
+  const items=[];
+  const od=overdue()[0];
+  if(od)items.push("**"+L("tasks",od.id,od.name)+"** ("+A(od.account).name+") is "+plural(-dayDiff(od.due),"day")+" overdue: complete it or agree a new due date.");
+  const hm=myMeetings().filter(m=>m.status==="Held"&&dayDiff(m.start)>=-14).sort((x,y)=>y.start-x.start)[0];
+  if(hm)items.push("**"+L("meetings",hm.id,hm.name)+"** (held "+rel(hm.start)+"): send a summary and agreed actions to "+(hm.invitees.filter(x=>x!==ME).join(", ")||"the attendees")+".");
+  const cl=mine(S.calls).filter(c=>c.status==="Held"&&dayDiff(c.date)>=-14).sort((x,y)=>y.date-x.date)[0];
+  if(cl)items.push("**"+L("calls",cl.id,cl.name)+"**"+(cl.contact?" with "+cl.contact:"")+" ("+rel(cl.date)+"): follow up on the outcome"+(cl.outcome?", \u201c"+cl.outcome+"\u201d":"")+".");
+  const op=closingWithin(30)[0];
+  if(op)items.push("**"+L("opportunities",op.id,op.name)+"** closes "+rel(op.close)+": "+(op.next?"confirm the next step, "+op.next.charAt(0).toLowerCase()+op.next.slice(1)+".":"agree the next step with the buyer."));
+  if(!items.length)return "You're all caught up. You have no overdue tasks, no meetings or calls in the last 14 days and no opportunities closing in the next 30 days.";
   return pick(["Based on your recent activity, I recommend these follow-up actions:","Here are the follow-up actions I'd suggest from your recent calls, meetings and tasks:"])+"\n\n"+
-  "1. **"+L("meetings","mtg-scope","Security Audit Scoping")+"** (held "+rel(d(-4))+"): share the scoping notes with Marcus Delacroix. That task is already overdue.\n"+
-  "2. **"+L("calls","call-req","Compliance Requirements Call")+"** with Priya Venkataraman: send the formal requirements document to keep "+L("opportunities","opp-comp","Compliance Module")+" moving.\n"+
-  "3. **"+L("opportunities","opp-data","Data Analytics Platform")+"** closes "+rel(d(12))+" and the purchase order chase is overdue. Follow up with Priya this week.\n"+
-  "4. **"+L("calls","call-renew","Renewal Negotiation Call")+"** with Helena Ostrowski: confirm the Customer Success handover for SaaS Renewal FY26.\n\n"+
-  "Want me to prepare a follow-up summary for any of these?";
+    items.map((x,i)=>(i+1)+". "+x).join("\n")+"\n\nWant me to prepare a meeting brief for any of these accounts?";
 }
 function weeklyFocus(){
   const od=overdue(),cs=closingWithin(30),wk=upcoming().filter(m=>dayDiff(m.start)<=7);
@@ -562,13 +574,13 @@ function weeklyFocus(){
   "1. **Overdue tasks ("+od.length+"):** "+(od.map(t=>L("tasks",t.id,t.name)).join("; ")||"none")+".\n"+
   "2. **Open opportunities closing within 30 days:** "+(cs.map(o=>L("opportunities",o.id,o.name)+" ("+money(o.amount)+", "+rel(o.close)+")").join("; ")||"none")+".\n"+
   "3. **Meetings this week ("+wk.length+"):** "+(wk.map(m=>L("meetings",m.id,m.name)+" "+rel(m.start)).join("; ")||"none")+".\n\n"+
-  "I recommend clearing the high-priority overdue task first, because it blocks the "+money(240000)+" Data Analytics Platform deal.";
+  (function(){const hp=od.find(t=>t.priority==="High");if(hp)return "I recommend clearing "+L("tasks",hp.id,hp.name)+" first, because it is high priority and "+plural(-dayDiff(hp.due),"day")+" overdue.";if(od.length)return "I recommend clearing "+L("tasks",od[0].id,od[0].name)+" first, because it is the oldest overdue task.";if(cs.length)return "I recommend focusing on "+L("opportunities",cs[0].id,cs[0].name)+", which closes "+rel(cs[0].close)+".";return "Your week looks clear, so it's a good time for prospecting and lead follow-up.";})();
 }
 function accomplishments(){
   const wkAgo=d(-7,0,0);
-  const tasks=S.tasks.filter(t=>t.status==="Completed"&&t.completed>=wkAgo);
-  const mtgs=S.meetings.filter(m=>m.status==="Held"&&m.start>=wkAgo);
-  const opps=S.opportunities.filter(o=>o.status!=="Open"&&o.close>=wkAgo&&o.close<=NOW);
+  const tasks=mine(S.tasks).filter(t=>t.status==="Completed"&&t.completed>=wkAgo);
+  const mtgs=myMeetings().filter(m=>m.status==="Held"&&m.start>=wkAgo);
+  const opps=mine(S.opportunities).filter(o=>o.status!=="Open"&&o.close>=wkAgo&&o.close<=NOW);
   const sec=(title,items)=>"### "+title+" ("+items.length+")\n"+(items.length?items.join("\n"):"- None this week");
   return pick(["Here's a summary of your accomplishments for the week:","Nice week, "+FN()+". Here's what you completed in the last 7 days:"])+"\n\n"+
     sec("Completed tasks",tasks.map(t=>"- "+L("tasks",t.id,t.name)+", completed "+rel(t.completed)))+"\n\n"+
@@ -581,6 +593,7 @@ function accomplishments(){
 function guestMeetings(){
   if(F.noretrieval)return none("meetings where you were a guest");
   const g=S.meetings.filter(isGuest),held=g.filter(m=>m.status==="Held"),up=g.filter(m=>m.status==="Planned");
+  if(!held.length)return "You haven't attended any meetings as a guest (invitee rather than organizer)."+(up.length?" You're a guest participant in "+plural(up.length,"upcoming meeting")+": "+up.map(m=>L("meetings",m.id,m.name)+" ("+fmtD(m.start)+")").join(", ")+".":"");
   return pick(["You've attended **"+plural(held.length,"meeting")+"** as a guest (invitee rather than organizer)","In total you've been a guest at "+plural(held.length,"held meeting")])+":\n\n"+
     held.map(m=>"- "+L("meetings",m.id,m.name)+" with "+A(m.account).name+", organized by "+m.organizer+", "+rel(m.start)).join("\n")+
     (up.length?"\n\nYou're also a guest participant in "+plural(up.length,"upcoming meeting")+": "+up.map(m=>L("meetings",m.id,m.name)+" ("+fmtD(m.start)+")").join(", ")+". Total as guest: "+g.length+".":"");
@@ -625,12 +638,12 @@ function prepBrief(m){
   s+="**When:** "+fmtD(m.start)+" at "+fmtT(m.start)+" ("+rel(m.start)+"), "+m.mins+" minutes, "+m.location+"\n";
   s+="**Attendees:** "+m.invitees.filter(x=>x!==ME).map(n=>{const c=S.contacts.find(c=>c.name===n);return c?L("contacts",c.id,n)+" ("+c.title+")":n;}).join(", ")+(isGuest(m)?". Organized by "+m.organizer+"; you're a guest.":"")+"\n\n";
   s+="**Account:** "+L("accounts",a.id,a.name)+", "+a.industry+", "+a.city+" ("+a.type+")\n\n";
-  s+="**Opportunities:**\n"+opps.map(o=>"- "+L("opportunities",o.id,o.name)+": "+o.stage+", "+money(o.amount)+(o.status==="Open"?", closes "+fmtD(o.close):"")).join("\n")+"\n\n";
-  s+="**Key contacts:** "+contacts.map(c=>L("contacts",c.id,c.name)+" ("+c.title+")").join(", ")+"\n\n";
-  s+="**Recent activity:**\n"+acts.map(x=>"- "+x.t+", "+rel(x.d)).join("\n")+"\n\n";
+  s+="**Opportunities:**\n"+(opps.length?"":"- None")+opps.map(o=>"- "+L("opportunities",o.id,o.name)+": "+o.stage+", "+money(o.amount)+(o.status==="Open"?", closes "+fmtD(o.close):"")).join("\n")+"\n\n";
+  s+="**Key contacts:** "+(contacts.map(c=>L("contacts",c.id,c.name)+(c.title?" ("+c.title+")":"")).join(", ")||"none recorded")+"\n\n";
+  s+="**Recent activity:**\n"+(acts.length?"":"- None recorded")+acts.map(x=>"- "+x.t+", "+rel(x.d)).join("\n")+"\n\n";
   if(tasks.length)s+="**Open tasks:**\n"+tasks.map(t=>"- "+L("tasks",t.id,t.name)+", due "+fmtD(t.due)+(dayDiff(t.due)<0?" (overdue)":"")).join("\n")+"\n\n";
   const lead=opps.find(o=>o.id===m.opp)||opps.find(o=>o.status==="Open");
-  s+="**Suggested talking points:**\n1. Progress on "+(lead?lead.name+" (next step: "+lead.next.charAt(0).toLowerCase()+lead.next.slice(1)+")":"open opportunities")+"\n2. Confirm decision makers and timeline\n3. Agree next steps and owners before the end of the meeting";
+  s+="**Suggested talking points:**\n1. Progress on "+(lead?lead.name+(lead.next?" (next step: "+lead.next.charAt(0).toLowerCase()+lead.next.slice(1)+")":""):"open opportunities")+"\n2. Confirm decision makers and timeline\n3. Agree next steps and owners before the end of the meeting";
   return s;
 }
 
@@ -666,14 +679,14 @@ function accountSummary(a){
 
 /* How-to guidance */
 const HOWTO={
-  opportunity:"Here are the steps to create a new opportunity in Keystone CRM:\n\n1. **Step 1:** Navigate to the **Opportunities** module from the left menu.\n2. **Step 2:** Click **Create** in the top-right corner.\n3. **Step 3:** Fill in the required fields: Opportunity Name, Account Name, Expected Close Date, Sales Stage and Amount.\n4. **Step 4:** Optionally set Probability, Lead Source and Next Step.\n5. **Step 5:** Click **Save**. The new opportunity opens in its record view.\n\nTip: create it from the Account record and the Account Name field is filled in for you.",
-  lead:"Follow these steps to create a new lead:\n\n1. **Step 1:** Navigate to the **Leads** module.\n2. **Step 2:** Click **Create**.\n3. **Step 3:** Enter the lead's details. **Last Name** is required; add First Name, Account Name, Title, Email and Phone if you have them.\n4. **Step 4:** Set Lead Source and Status (for example New).\n5. **Step 5:** Click **Save**.\n\nWhen the lead is qualified, use **Convert Lead** to turn it into a contact, account and opportunity.",
-  call:"Here's how to log a call:\n\n1. **Step 1:** Open the related record (for example an account, contact or opportunity) and go to the **Calls** subpanel, or navigate to the **Calls** module.\n2. **Step 2:** Click **Log Call**.\n3. **Step 3:** Enter a **Subject**, set the Direction, Status (Held), start date and duration.\n4. **Step 4:** Add a description of the conversation and outcome.\n5. **Step 5:** Click **Save**. The call appears in the record's activity stream.",
-  import:"To import records from a CSV file, use the Import wizard:\n\n1. **Step 1:** Navigate to the module you want to import into (for example Contacts) and click **Import** from the module menu.\n2. **Step 2:** Upload your **CSV file** and confirm the delimiter and whether the first row has headers.\n3. **Step 3:** Choose **Create new records only** or **Create and update** existing records.\n4. **Step 4:** **Map** each CSV column to a Keystone CRM field. Required fields must be mapped.\n5. **Step 5:** Set duplicate checks, then click **Import Now**.\n6. **Step 6:** Review the results summary and download any rows with errors to fix and import again.",
-  contact:"Here are the steps to create a new contact:\n\n1. **Step 1:** Navigate to the **Contacts** module.\n2. **Step 2:** Click **Create**.\n3. **Step 3:** Enter **Last Name** (required), First Name, Title, Account Name, Email and Phone.\n4. **Step 4:** Click **Save**.",
-  account:"Here are the steps to create a new account:\n\n1. **Step 1:** Navigate to the **Accounts** module.\n2. **Step 2:** Click **Create**.\n3. **Step 3:** Enter the **Name** (required), Industry, Type, Website and billing address.\n4. **Step 4:** Click **Save**.",
-  meeting:"Here's how to schedule a meeting:\n\n1. **Step 1:** Navigate to the **Meetings** module, or open the related record.\n2. **Step 2:** Click **Schedule Meeting**.\n3. **Step 3:** Enter the Subject, start date, duration and location, and add invitees.\n4. **Step 4:** Click **Save**. Invitees receive an invitation if notifications are on.",
-  task:"Here's how to create a task:\n\n1. **Step 1:** Navigate to the **Tasks** module.\n2. **Step 2:** Click **Create**.\n3. **Step 3:** Enter the Subject, Due Date, Priority and the related record.\n4. **Step 4:** Click **Save**."
+  opportunity:"Here are the steps to create a new opportunity in Keystone CRM:\n\n1. **Step 1:** Navigate to **Opportunities** in the left menu.\n2. **Step 2:** Click **New opportunity** at the top right.\n3. **Step 3:** Fill in the required fields: Opportunity name, Account, Sales stage, Amount and Expected close date.\n4. **Step 4:** Optionally set Probability (it defaults from the sales stage), Assigned to and Next step.\n5. **Step 5:** Click **Save**. The new opportunity's record page opens.\n\nTip: click **New opportunity** in the Opportunities list on an account's page and the Account field is filled in for you.",
+  lead:"Follow these steps to create a new lead:\n\n1. **Step 1:** Navigate to **Leads** in the left menu.\n2. **Step 2:** Click **New lead**.\n3. **Step 3:** Enter **Last name** and **Company** (both required), and add First name, Title, Email and Phone if you have them.\n4. **Step 4:** Set Status (for example New) and Lead source.\n5. **Step 5:** Click **Save**.\n\nWhen the lead is qualified, open it and click **Convert** to create a contact and, optionally, an account and an opportunity.",
+  call:"Here's how to log a call:\n\n1. **Step 1:** Navigate to **Calls** in the left menu, or open the related account or contact and use **New call** in its Calls list.\n2. **Step 2:** Click **New call**.\n3. **Step 3:** Enter a **Subject** and the **Date and time** (both required), then set Direction and Status (Held for a call that has happened).\n4. **Step 4:** Choose the Account and Contact, and write the Outcome of the conversation.\n5. **Step 5:** Click **Save**. The call appears in the account's and contact's Calls lists.",
+  import:"Keystone CRM doesn't have a CSV import yet, so records are added one at a time. To add a record:\n\n1. **Step 1:** Navigate to the module in the left menu (for example **Contacts**).\n2. **Step 2:** Click the **New** button at the top right (for example **New contact**).\n3. **Step 3:** Fill in the required fields, marked with *.\n4. **Step 4:** Click **Save**.\n\nRepeat for each row in your CSV file.",
+  contact:"Here are the steps to create a new contact:\n\n1. **Step 1:** Navigate to **Contacts** in the left menu.\n2. **Step 2:** Click **New contact**.\n3. **Step 3:** Enter **Last name** (required), and add First name, Title, Account, Email and Phone.\n4. **Step 4:** Click **Save**.",
+  account:"Here are the steps to create a new account:\n\n1. **Step 1:** Navigate to **Accounts** in the left menu.\n2. **Step 2:** Click **New account**.\n3. **Step 3:** Enter the **Account name** (required and unique), and add Industry, Type, Website, Phone, City and Employees.\n4. **Step 4:** Click **Save**.",
+  meeting:"Here's how to schedule a meeting:\n\n1. **Step 1:** Navigate to **Meetings** in the left menu, or open the related account or opportunity.\n2. **Step 2:** Click **New meeting**.\n3. **Step 3:** Enter the **Subject** and **Start** date and time (both required), and set Duration, Location, Account, Related opportunity and Invitees (names separated by commas).\n4. **Step 4:** Click **Save**.",
+  task:"Here's how to create a task:\n\n1. **Step 1:** Navigate to **Tasks** in the left menu.\n2. **Step 2:** Click **New task**.\n3. **Step 3:** Enter the **Subject** and **Due date** (both required), and set Priority, Status, Account and Description.\n4. **Step 4:** Click **Save**. Use **Mark complete** on the task when it's done."
 };
 function howTo(t){
   if(/import|csv|upload/.test(t))return HOWTO.import;
@@ -684,7 +697,7 @@ function howTo(t){
   if(/account/.test(t))return HOWTO.account;
   if(/meeting/.test(t))return HOWTO.meeting;
   if(/task/.test(t))return HOWTO.task;
-  return "I don't have a guide for that yet. I can walk you through creating opportunities, leads, contacts, accounts, tasks and meetings, logging calls, or importing records from a CSV file. Try to rephrase your question around one of those.";
+  return "I don't have a guide for that yet. I can walk you through creating opportunities, leads, contacts, accounts, tasks and meetings, logging calls, or adding records from a CSV file. Try to rephrase your question around one of those.";
 }
 
 /* No-mutation guard */
@@ -698,7 +711,7 @@ function mutation(t,q){
   }
   if(del)return pick(["Sorry, I can't delete records. I have read-only access to your CRM, so I'm only able to view and summarise data. Your "+(S[mod]?S[mod].length+" ":"")+mod+" are unchanged.","I'm not able to delete "+mod+". Assist is read-only: I can look up and summarise CRM data but I do not have the ability to change it. If you need to clean up "+mod+", an admin can do it from the "+mod.charAt(0).toUpperCase()+mod.slice(1)+" list view."]);
   if(create){const key=mod==="records"?null:mod.replace(/ies$/,"y").replace(/s$/,"");
-    return pick(["I can't create records because I have read-only access to your CRM. I can show you how to do it yourself, though:","I'm not able to create that for you, as Assist is read-only. Here's a quick guide instead:"])+"\n\n"+(key&&HOWTO[key]?HOWTO[key].split("\n\n").slice(1).join("\n\n"):"Open the module, click **Create**, fill in the required fields and click **Save**.");}
+    return pick(["I can't create records because I have read-only access to your CRM. I can show you how to do it yourself, though:","I'm not able to create that for you, as Assist is read-only. Here's a quick guide instead:"])+"\n\n"+(key&&HOWTO[key]?HOWTO[key].split("\n\n").slice(1).join("\n\n"):"Open the module in the left menu, click its **New** button, fill in the required fields and click **Save**.");}
   return "Sorry, I can't make changes to CRM records. I have read-only access, so I can only view and summarise your data. I can show you how to make the change yourself if you tell me which record.";
 }
 
