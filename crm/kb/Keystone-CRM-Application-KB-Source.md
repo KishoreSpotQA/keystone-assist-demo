@@ -62,12 +62,12 @@ Adding `autologin` to the link (for example `crmUrl#autologin`) signs in as Sam 
 | Left module rail | Home, Accounts, Contacts, Leads, Opportunities, Meetings, Calls, Tasks. Each module shows its record count. The current page is highlighted. At the bottom: **Knowledge base** links (section 3.1) |
 | Main area | The current page: Home, a module list, a record page or search results |
 
-- **User menu** (click the initials): name, role, email, **CRM application KB**, **Assist chatbot KB**, **Reset demo data**, **Sign out**. Clicking elsewhere or pressing Escape closes it.
+- **User menu** (click the initials): name, role, email, **CRM application KB**, **Assist chatbot KB**, **Touchstone directives**, **Reset demo data**, **Sign out**. Clicking elsewhere or pressing Escape closes it.
 - Record pages show a breadcrumb (for example "Accounts / Account"). Clicking the module name returns to its list.
 - On screens narrower than 900 px the module rail becomes a horizontal bar and the top-bar search box is hidden. The Knowledge base links are then available only from the user menu.
 
 ### 3.1 Knowledge base links (demo resource)
-The bottom of the module rail has a **Knowledge base** section with two links: **CRM application KB** (this document) and **Assist chatbot KB** (the Assist reference). Each opens a dialog that shows the document, with **Open as text** (opens the Markdown file in a new tab) and **Download .md** (downloads the file). Escape or × closes the dialog.
+The bottom of the module rail has a **Knowledge base** section with three links: **CRM application KB** (this document), **Assist chatbot KB** (the Assist reference) and **Touchstone directives** (suggested Touchstone directives for these sources). Each opens a dialog that shows the document, with **Open as text** (opens the Markdown file in a new tab) and **Download .md** (downloads the file). Escape or × closes the dialog.
 
 These links are provided for demo audiences. Do not generate requirements for them.
 
@@ -505,8 +505,8 @@ Every field has a visible label tied to its input, so steps can target fields by
 | Related-list New buttons | `[data-new="<module>"]` inside the related section |
 | Activity list | `#activity` (record page), `#recent-activity` (Home) |
 | Message (toast) | `#toast` |
-| User menu | `#user-menu-btn`, `#menu-reset`, `#menu-signout`, `#menu-kb-app`, `#menu-kb-assist` |
-| Knowledge base links and viewer | `#kb-app`, `#kb-assist`, `#kb-viewer` (`data-state="done"` when loaded), `#kb-download`, `#kb-raw` |
+| User menu | `#user-menu-btn`, `#menu-reset`, `#menu-signout`, `#menu-kb-app`, `#menu-kb-assist`, `#menu-kb-directives` |
+| Knowledge base links and viewer | `#kb-app`, `#kb-assist`, `#kb-directives`, `#kb-viewer` (`data-state="done"` when loaded), `#kb-download`, `#kb-raw` |
 
 Date fields are the browser's date pickers (`type=date` and `type=datetime-local`). In automation, set them with the value format YYYY-MM-DD (date) or YYYY-MM-DDThh:mm (date and time); when typing by hand, use the format the browser displays. Displayed dates use British day-month order, for example "Mon, 26 Oct", "Mon, 26 Oct, 15:30" or "26 Oct 2026" (exact punctuation can vary slightly by browser).
 

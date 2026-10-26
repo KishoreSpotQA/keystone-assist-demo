@@ -236,6 +236,11 @@ th[aria-sort="descending"] button.sort::after{content:"▼";font-size:9px}
 .kb-doc th,.kb-doc td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 .kb-doc th{background:var(--surface-2)}
 .kb-doc a{color:var(--accent)}
+.kb-doc blockquote{margin:0 0 12px;padding:8px 12px;border-left:3px solid var(--accent);background:var(--surface-2);border-radius:4px}
+.kb-code{position:relative;margin:0 0 12px}
+.kb-code pre{margin:0;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;padding-right:76px;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--font-mono);font-size:12.5px;line-height:1.5}
+.kb-code pre code{background:none;padding:0}
+.kb-copy{position:absolute;top:8px;right:8px}
 @media (max-width:900px){.nav-kb{display:none}}
 </style></head><body style="margin:0">
 <section class="login" id="login-screen" aria-labelledby="login-title" hidden>
@@ -274,6 +279,7 @@ th[aria-sort="descending"] button.sort::after{content:"▼";font-size:9px}
         <div class="who"><strong id="menu-name"></strong><span id="menu-role"></span><br><span id="menu-email"></span></div>
         <button type="button" id="menu-kb-app" data-kb="app">CRM application KB</button>
         <button type="button" id="menu-kb-assist" data-kb="assist">Assist chatbot KB</button>
+        <button type="button" id="menu-kb-directives" data-kb="directives">Touchstone directives</button>
         <button type="button" id="menu-reset">Reset demo data</button>
         <button type="button" id="menu-signout">Sign out</button>
       </div>
@@ -1321,7 +1327,8 @@ function renderNav(){
 /* ---------- Knowledge base viewer ---------- */
 const KB_DOCS=[
   {key:"app",label:"CRM application KB",title:"Keystone CRM: Application Reference",file:"kb/Keystone-CRM-Application-KB-Source.md"},
-  {key:"assist",label:"Assist chatbot KB",title:"Keystone CRM Assist: AI Chat Assistant Reference",file:"kb/Keystone-CRM-Assist-KB-Source.md"}
+  {key:"assist",label:"Assist chatbot KB",title:"Keystone CRM Assist: AI Chat Assistant Reference",file:"kb/Keystone-CRM-Assist-KB-Source.md"},
+  {key:"directives",label:"Touchstone directives",title:"Keystone CRM: Touchstone Directives",file:"kb/Keystone-CRM-Touchstone-Directives.md"}
 ];
 const KB_CACHE={};
 function kbInline(x){
@@ -1339,6 +1346,9 @@ function kbRender(src){
       while(i<lines.length&&/^\s*\|/.test(lines[i])){rows+="<tr>"+cells(lines[i]).map(c=>"<td>"+kbInline(c)+"</td>").join("")+"</tr>";i++;}
       h+='<div class="tbl"><table><thead><tr>'+hd.map(c=>"<th>"+kbInline(c)+"</th>").join("")+"</tr></thead><tbody>"+rows+"</tbody></table></div>";continue;
     }
+    if(/^\s*```/.test(l)){closeList();let code=[];i++;while(i<lines.length&&!/^\s*```/.test(lines[i])){code.push(lines[i]);i++;}i++;
+      h+='<div class="kb-code"><button type="button" class="btn-ghost btn-sm kb-copy">Copy</button><pre><code>'+esc(code.join("\n"))+"</code></pre></div>";continue;}
+    if((m=l.match(/^>\s?(.*)/))){closeList();h+="<blockquote>"+kbInline(m[1])+"</blockquote>";i++;continue;}
     if((m=l.match(/^(#{1,4})\s+(.*)/))){closeList();const n=m[1].length;h+="<h"+n+">"+kbInline(m[2])+"</h"+n+">";}
     else if(/^\s*-{3,}\s*$/.test(l)){closeList();h+="<hr>";}
     else if((m=l.match(/^\s*[-*]\s+(.*)/))){if(list!=="ul"){closeList();h+="<ul>";list="ul";}h+="<li>"+kbInline(m[1])+"</li>";}
@@ -1443,6 +1453,8 @@ document.addEventListener("change",e=>{
 document.addEventListener("click",e=>{
   const T=e.target;
   if(!T.closest("#user-menu")&&!T.closest("#user-menu-btn")&&!$("#user-menu").hidden)closeMenu();
+  const cp=T.closest(".kb-copy");if(cp){const txt=cp.parentElement.querySelector("code").textContent;const done=()=>{cp.textContent="Copied";setTimeout(()=>{cp.textContent="Copy";},1500);};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,()=>{toast("Select the text and copy it manually.");});else toast("Select the text and copy it manually.");return;}
   const kbb=T.closest("button[data-kb]");if(kbb){openKB(kbb.dataset.kb);return;}
   const n=T.closest("[data-nav]");if(n){const k=n.dataset.nav;go(k==="home"?{view:"home"}:{view:"list",module:k});return;}
   const r=T.closest(".rowlink");if(r){go({view:"detail",module:r.dataset.module,id:r.dataset.id});return;}

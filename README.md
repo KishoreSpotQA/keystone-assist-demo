@@ -21,7 +21,7 @@ Keystone CRM is fictional. All companies, people and figures are sample data.
 - **Workflows:** convert a lead into a contact, account and opportunity; mark a task complete; global search across all records.
 - **Data:** changes are saved in the browser. **Reset demo data** in the user menu restores the seed. A fresh browser (such as each Virtuoso run) always starts from the seed.
 - **Assist** answers from the live data, so records you create appear in its answers. Personal questions ("my opportunities", "my tasks") return the signed-in user's records; account and contact questions cover the whole workspace. How-to answers use the CRM's real labels.
-- **Knowledge base:** the two Touchstone KB sources are in `crm/kb/` and linked at the bottom of the left menu (and in the user menu): `Keystone-CRM-Application-KB-Source.md` (CRM screens) and `Keystone-CRM-Assist-KB-Source.md` (Assist chatbot). Each opens in the app with a **Download .md** button.
+- **Knowledge base:** the two Touchstone KB sources are in `crm/kb/` and linked at the bottom of the left menu (and in the user menu): `Keystone-CRM-Application-KB-Source.md` (CRM screens) and `Keystone-CRM-Assist-KB-Source.md` (Assist chatbot), plus `Keystone-CRM-Touchstone-Directives.md` (suggested Analyst, Architect and Autopilot directives). Each opens in the app with a **Download .md** button.
 
 ### CRM test hooks
 | Element | Hook |
